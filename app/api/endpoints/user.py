@@ -14,6 +14,7 @@ from app.utils import send_new_account_email
 
 router = APIRouter()
 admin_router = APIRouter()
+settings = get_app_settings()
 
 
 @admin_router.get("/users", response_model=List[schemas.User])
@@ -96,7 +97,6 @@ def register_user(
     password: str = Body(...),
     email: EmailStr = Body(...),
     full_name: str = Body(None),
-    settings: AppSettings = Depends(get_app_settings),
 ) -> Any:
     """
     Create new user without the need to be logged in.

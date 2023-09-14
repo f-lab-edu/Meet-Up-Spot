@@ -10,10 +10,13 @@ class TestAppSettings(AppSettings):
 
     title: str = "Test FastAPI example application"
 
-    secret_key: SecretStr = SecretStr("test_secret")
+    SECRET_KEY: SecretStr = SecretStr("test_secret")
 
-    database_url: PostgresDsn
+    DATABASE_URL: PostgresDsn
     max_connection_count: int = 5
     min_connection_count: int = 5
 
     logging_level: int = logging.DEBUG
+
+
+settings = TestAppSettings()

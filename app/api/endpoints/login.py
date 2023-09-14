@@ -19,13 +19,13 @@ from app.utils import (
 )
 
 router = APIRouter()
+settings = get_app_settings()
 
 
 @router.post("/login/access-token", response_model=schemas.Token)
 def login_access_token(
     db: Session = Depends(deps.get_db),
     form_data: OAuth2PasswordRequestForm = Depends(),
-    settings: AppSettings = Depends(get_app_settings),
 ) -> schemas.Token:
     """
     OAuth2 compatible token login, get an access token for future requests

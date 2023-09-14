@@ -17,7 +17,7 @@ ALGORITHM = "HS256"
 def create_access_token(
     subject: Union[str, Any],
     expires_delta: timedelta = None,
-    settings: AppSettings = Depends(get_app_settings()),
+    settings: AppSettings = Depends(get_app_settings),
 ) -> str:
     if expires_delta:
         expire = datetime.utcnow() + expires_delta

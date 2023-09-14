@@ -29,7 +29,7 @@ class AppSettings(BaseAppSettings):
         ","
     )
 
-    app_env: AppEnvTypes = os.environ["FAST_API_ENV"]
+    APP_ENV: AppEnvTypes = os.environ["APP_ENV"]
 
     @classmethod
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
@@ -53,6 +53,7 @@ class AppSettings(BaseAppSettings):
     POSTGRES_SERVER: str = os.environ["POSTGRES_HOST"]
     POSTGRES_USER: str = os.environ["POSTGRES_USER"]
     POSTGRES_PASSWORD: str = os.environ["POSTGRES_PASSWORD"]
+    POSTGRES_HOST: str = os.environ["POSTGRES_HOST"]
     POSTGRES_DB: str = os.environ["POSTGRES_DB"]
     DATABASE_URL: str = os.environ["DATABASE_URL"]
 

@@ -116,3 +116,6 @@ class AppSettings(BaseAppSettings):
 
     class Config:
         case_sensitive = True
+
+
+settings = AppSettings()

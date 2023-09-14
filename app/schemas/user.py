@@ -2,7 +2,6 @@ from typing import Optional
 
 from pydantic import BaseModel, EmailStr
 
-from app.schemas.common import DateTimeModelMixin, IDModelMixin
 
 
 class UserBase(BaseModel):
@@ -21,7 +20,7 @@ class UserUpdate(UserBase):
     password: Optional[str] = None
 
 
-class UserInDBBase(UserBase, IDModelMixin, DateTimeModelMixin):
+class UserInDBBase(UserBase):
     class Config:
         orm_mode = True
 

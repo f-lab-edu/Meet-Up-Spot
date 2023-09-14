@@ -17,3 +17,6 @@ class TestAppSettings(AppSettings):
     min_connection_count: int = 5
 
     logging_level: int = logging.DEBUG
+
+
+settings = TestAppSettings()

@@ -12,11 +12,12 @@ from app.core.settings.app import AppSettings
 
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl="/login/access-token")
 
+settings = get_app_settings()
+
 
 def get_current_user(
     db: Session = Depends(get_db),
     token: str = Depends(reusable_oauth2),
-    settings: AppSettings = Depends(get_app_settings),
 ) -> models.User:
     try:
         payload = jwt.decode(

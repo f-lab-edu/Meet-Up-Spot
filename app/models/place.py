@@ -1,8 +1,10 @@
-from sqlalchemy import Column, Float, ForeignKey, Integer, String
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Float, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
+from app.models.associations import place_type_association, user_place_association
+
+# pylint: disable=no-member
 
 
 class Place(Base):
@@ -17,4 +19,18 @@ class Place(Base):
     user_id = Column(Integer, ForeignKey("user.id"))
 
     location = relationship("Location", back_populates="places")
-    user = relationship("User", back_populates="places")
+    users = relationship(
+        "User", secondary=user_place_association, back_populates="places"
+    )
+    place_types = relationship(
+        "PlaceType", secondary=place_type_association, back_populates="places"
+    )
+
+
+class PlaceType(Base):
+    id = Column(Integer, primary_key=True, index=True)
+    type_name = Column(String(255), nullable=False, unique=True, index=True)
+
+    places = relationship(
+        "Place", secondary=place_type_association, back_populates="place_types"
+    )

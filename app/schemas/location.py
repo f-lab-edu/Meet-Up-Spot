@@ -5,7 +5,6 @@ from pydantic import BaseModel, EmailStr
 
 # Shared properties
 class LocationBase(BaseModel):
-    id: int
     latitude: float
     longitude: float
 
@@ -14,6 +13,8 @@ class LocationBase(BaseModel):
 class LocationCreate(LocationBase):
     compound_code: str
     global_code: str
+    latitude: float
+    longitude: float
 
 
 class LocationUpdate(LocationBase):

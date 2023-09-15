@@ -33,7 +33,7 @@ class CRUDLocation(CRUDBase[Location, LocationCreate, LocationUpdate]):
         db_obj = Location(
             latitude=obj_in.latitude,
             longitude=obj_in.longitude,
-            compund_code=obj_in.compound_code,
+            compound_code=obj_in.compound_code,
             global_code=obj_in.global_code,
         )
         db.add(db_obj)

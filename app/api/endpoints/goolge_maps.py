@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
-from app.schemas.google_maps_api import RequestSpotResponse, ReverseGeocodeRequest
+from app.schemas.google_maps_api import ReverseGeocodeRequest
 from app.services.google_maps_services import GoogleMapsService
 from app.services.midpoint_services import calculate_midpoint_from_addresses
 from app.services.recommend_services import Recommender

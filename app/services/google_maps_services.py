@@ -9,6 +9,8 @@ from app.api import deps
 from app.core.config import get_app_settings
 from app.schemas.google_maps_api import GeocodeResponse
 from app.schemas.google_maps_api_log import GoogleMapsApiLogCreate
+from app.schemas.location import LocationCreate
+from app.schemas.place import PlaceCreate
 
 settings = get_app_settings()
 
@@ -141,7 +143,7 @@ class GoogleMapsService:
         params = {
             "location": f"{latitude},{longitude}",
             "radius": radius,
-            "type": "point_of_interest | cafe | restaurant",
+            "type": "cafe|restaurant|bar",
             "key": self.api_key,
         }
 
@@ -164,13 +166,35 @@ class GoogleMapsService:
         if response.status_code == 200:
             data = response.json()
             status = data.get("status")
-            # 여기에는  받아온 데이터 처리하는 로직을 넣어야 한다.
-            # location = Location.create
-            # place = Place.create
-            # 일단은 이떄만 저장 하자
             match status:
                 case "OK":
-                    return data["results"]
+                    results = data["results"]
+                    if len(results) > 5:
+                        results = results[:5]
+                    for result in results:
+                        location = crud.location.create(
+                            db,
+                            obj_in=LocationCreate(
+                                latitude=result["geometry"]["location"]["lat"],
+                                longitude=result["geometry"]["location"]["lng"],
+                                compound_code=result["plus_code"]["compound_code"],
+                                global_code=result["plus_code"]["global_code"],
+                            ),
+                        )
+                        place = crud.place.create(
+                            db,
+                            obj_in=PlaceCreate(
+                                place_id=result["place_id"],
+                                name=result["name"],
+                                address=result["vicinity"],
+                                user_ratings_total=result["user_ratings_total"],
+                                rating=result["rating"],
+                                location_id=location.id,
+                                place_types=result["types"],
+                            ),
+                        )
+
+                    return results
                 case "ZERO_RESULTS":
                     raise HTTPException(
                         status_code=response.status_code, detail="찾을 수 없는 주소입니다."
@@ -206,9 +230,6 @@ class GoogleMapsService:
                 status_code=response.status_code,
                 detail="Geocoding API 요청 중 오류가 발생했습니다.",
             )
-
-    def search_nearby_places_by_text(self, text: str, radius=1500):
-        pass
 
     def auto_complete_place(self, text: str):
         """

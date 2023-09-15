@@ -265,3 +265,59 @@ class GoogleMapsService:
                 status_code=response.status_code,
                 detail="Geocoding API 요청 중 오류가 발생했습니다.",
             )
+
+    def get_place_detail(self, place_id: str):
+        """
+        장소 상세 정보 API 요청
+        """
+        params = {
+            "place_id": place_id,
+            "key": self.api_key,
+        }
+        response = requests.get(
+            "https://maps.googleapis.com/maps/api/place/details/json",
+            params=params,
+            timeout=5,
+        )
+
+        if response.status_code == 200:
+            data = response.json()
+            status = data.get("status")
+            match status:
+                case "OK":
+                    return data["result"]
+                case "ZERO_RESULTS":
+                    raise HTTPException(
+                        status_code=response.status_code, detail="찾을 수 없는 주소입니다."
+                    )
+                case "OVER_DAILY_LIMIT":
+                    raise HTTPException(
+                        status_code=response.status_code,
+                        detail="API 키가 누락되었거나 잘못되었습니다.",
+                    )
+                case "OVER_QUERY_LIMIT":
+                    raise HTTPException(
+                        status_code=response.status_code, detail="할당량이 초과되었습니다."
+                    )
+                case "REQUEST_DENIED":
+                    raise HTTPException(
+                        status_code=response.status_code, detail="요청이 거부되었습니다."
+                    )
+                case "INVALID_REQUEST":
+                    raise HTTPException(
+                        status_code=response.status_code, detail="입력값이 누락되었습니다."
+                    )
+                case "UNKNOWN_ERROR":
+                    raise HTTPException(
+                        status_code=response.status_code, detail="서버 내부 오류가 발생했습니다."
+                    )
+                case _:
+                    raise HTTPException(
+                        status_code=response.status_code, detail="알 수 없는 상태 코드입니다."
+                    )
+
+        else:
+            raise HTTPException(
+                status_code=response.status_code,
+                detail="Geocoding API 요청 중 오류가 발생했습니다.",
+            )

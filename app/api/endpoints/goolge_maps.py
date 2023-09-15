@@ -84,3 +84,12 @@ async def autocomplete(address: str):
     """
     results = goggle_maps_service.auto_complete_place(address)
     return {"results": results}
+
+
+@router.get("places/detail/")
+async def get_place_detail(place_id: str):
+    """
+    장소의 상세 정보를 반환하는 API 엔드포인트
+    """
+    results = goggle_maps_service.get_place_detail(place_id)
+    return {"results": results}

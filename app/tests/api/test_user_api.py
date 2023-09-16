@@ -13,7 +13,7 @@ from app.tests.utils.utils import random_email, random_lower_string
 def test_get_users_superuser_me(
     client: TestClient, superuser_token_headers: Dict[str, str], settings: AppSettings
 ) -> None:
-    r = client.get(f"{settings.API_V1_STR}/user/", headers=superuser_token_headers)
+    r = client.get(f"{settings.API_V1_STR}/users/me", headers=superuser_token_headers)
     current_user = r.json()
     assert current_user
     assert current_user["is_active"] is True
@@ -24,7 +24,7 @@ def test_get_users_superuser_me(
 def test_get_users_normal_user_me(
     client: TestClient, normal_user_token_headers: Dict[str, str], settings: AppSettings
 ) -> None:
-    r = client.get(f"{settings.API_V1_STR}/user/", headers=normal_user_token_headers)
+    r = client.get(f"{settings.API_V1_STR}/users/me", headers=normal_user_token_headers)
     current_user = r.json()
     print(current_user)
     assert current_user
@@ -66,7 +66,7 @@ def test_get_existing_user(
     user = crud.user.create(db, obj_in=user_in)
     user_id = user.id
     r = client.get(
-        f"{settings.API_V1_STR}/user/{user_id}",
+        f"{settings.API_V1_STR}/users/{user_id}",
         headers=superuser_token_headers,
     )
     assert 200 <= r.status_code < 300

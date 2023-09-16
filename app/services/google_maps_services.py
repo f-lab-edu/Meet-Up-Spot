@@ -10,7 +10,7 @@ from app.core.config import get_app_settings
 from app.schemas.google_maps_api import GeocodeResponse
 from app.schemas.google_maps_api_log import GoogleMapsApiLogCreate
 from app.schemas.location import LocationCreate
-from app.schemas.place import PlaceCreate
+from app.schemas.place import Place, PlaceCreate
 
 settings = get_app_settings()
 
@@ -136,7 +136,7 @@ class GoogleMapsService:
         latitude,
         longitude,
         radius=500,
-    ):
+    ) -> List[Place]:
         """
         주변 지역 검색 API 요청
         """
@@ -171,30 +171,56 @@ class GoogleMapsService:
                     results = data["results"]
                     if len(results) > 5:
                         results = results[:5]
-                    for result in results:
-                        location = crud.location.create(
-                            db,
-                            obj_in=LocationCreate(
-                                latitude=result["geometry"]["location"]["lat"],
-                                longitude=result["geometry"]["location"]["lng"],
-                                compound_code=result["plus_code"]["compound_code"],
-                                global_code=result["plus_code"]["global_code"],
-                            ),
-                        )
-                        place = crud.place.create(
-                            db,
-                            obj_in=PlaceCreate(
-                                place_id=result["place_id"],
-                                name=result["name"],
-                                address=result["vicinity"],
-                                user_ratings_total=result["user_ratings_total"],
-                                rating=result["rating"],
-                                location_id=location.id,
-                                place_types=result["types"],
-                            ),
-                        )
 
-                    return results
+                    response_results = []
+
+                    for result in results:
+                        latitude = result["geometry"]["location"]["lat"]
+                        longitude = result["geometry"]["location"]["lng"]
+                        compound_code = result["plus_code"]["compound_code"]
+                        global_code = result["plus_code"]["global_code"]
+
+                        if existing_location := crud.location.get_by_plus_code(
+                            db, compound_code=compound_code, global_code=global_code
+                        ):
+                            location = existing_location
+                        else:
+                            location = crud.location.create(
+                                db,
+                                obj_in=LocationCreate(
+                                    latitude=latitude,
+                                    longitude=longitude,
+                                    compound_code=compound_code,
+                                    global_code=global_code,
+                                ),
+                            )
+                        place_id = result["place_id"]
+
+                        if existing_place := crud.place.get_by_place_id(
+                            db, id=place_id
+                        ):
+                            place = existing_place
+                        else:
+                            place = crud.place.create(
+                                db,
+                                obj_in=PlaceCreate(
+                                    place_id=result["place_id"],
+                                    name=result["name"],
+                                    address=result["vicinity"],
+                                    user_ratings_total=result["user_ratings_total"]
+                                    if "user_ratings_total" in result
+                                    else 0,
+                                    rating=result["rating"]
+                                    if "rating" in result
+                                    else 0,
+                                    location_id=location.id,
+                                    place_types=result["types"],
+                                ),
+                            )
+
+                        response_results.append(place)
+
+                    return response_results
                 case "ZERO_RESULTS":
                     raise HTTPException(
                         status_code=response.status_code, detail="찾을 수 없는 주소입니다."

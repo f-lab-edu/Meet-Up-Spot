@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Float, Integer, String
+from sqlalchemy import Column, Float, Integer, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
@@ -12,3 +12,7 @@ class Location(Base):
     global_code = Column(String(255), nullable=False, index=True)
 
     places = relationship("Place", back_populates="location")
+
+    __table_args__ = (
+        UniqueConstraint("compound_code", "global_code", name="uq_location_codes"),
+    )

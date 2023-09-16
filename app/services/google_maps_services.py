@@ -9,16 +9,69 @@ from app.api import deps
 from app.core.config import get_app_settings
 from app.schemas.google_maps_api import GeocodeResponse
 from app.schemas.google_maps_api_log import GoogleMapsApiLogCreate
-from app.schemas.location import LocationCreate
+from app.schemas.location import Location, LocationCreate
 from app.schemas.place import Place, PlaceCreate
 
 settings = get_app_settings()
+
+STATUS_DETAIL_MAPPING = {
+    "ZERO_RESULTS": "찾을 수 없는 주소입니다.",
+    "OVER_DAILY_LIMIT": "API 키가 누락되었거나 잘못되었습니다.",
+    "OVER_QUERY_LIMIT": "할당량이 초과되었습니다.",
+    "REQUEST_DENIED": "요청이 거부되었습니다.",
+    "INVALID_REQUEST": "입력값이 누락되었습니다.",
+    "UNKNOWN_ERROR": "서버 내부 오류가 발생했습니다.",
+}
 
 
 class GoogleMapsService:
     def __init__(self):
         self.api_key = settings.GOOGLE_MAPS_API_KEY
         self.base_url = "https://maps.googleapis.com/maps/api/geocode/json"
+
+    def handle_status(self, status_code, status):
+        if status in STATUS_DETAIL_MAPPING:
+            raise HTTPException(
+                status_code=status_code, detail=STATUS_DETAIL_MAPPING[status]
+            )
+        else:
+            raise HTTPException(status_code=status_code, detail="알 수 없는 상태 코드입니다.")
+
+    def create_or_get_location(self, db, result) -> Location:
+        latitude = result["geometry"]["location"]["lat"]
+        longitude = result["geometry"]["location"]["lng"]
+        compound_code = result["plus_code"]["compound_code"]
+        global_code = result["plus_code"]["global_code"]
+
+        existing_location = crud.location.get_by_plus_code(
+            db, compound_code=compound_code, global_code=global_code
+        )
+        return existing_location or crud.location.create(
+            db,
+            obj_in=LocationCreate(
+                latitude=latitude,
+                longitude=longitude,
+                compound_code=compound_code,
+                global_code=global_code,
+            ),
+        )
+
+    def create_or_get_place(self, db, result, location_id) -> Place:
+        place_id = result["place_id"]
+        existing_place = crud.place.get_by_place_id(db, id=place_id)
+
+        return existing_place or crud.place.create(
+            db,
+            obj_in=PlaceCreate(
+                place_id=result["place_id"],
+                name=result["name"],
+                address=result["vicinity"],
+                user_ratings_total=result.get("user_ratings_total", 0),
+                rating=result.get("rating", 0),
+                location_id=location_id,
+                place_types=result["types"],
+            ),
+        )
 
     def geocode_address(self, address: str) -> GeocodeResponse:
         """
@@ -42,42 +95,11 @@ class GoogleMapsService:
             status = data.get("status")
             print(data)
             # 첫 번째 결과의 경도와 위도 추출
-            match status:
-                case "OK":
-                    location = data["results"][0]["geometry"]["location"]
-                    return GeocodeResponse(
-                        latitude=location["lat"], longitude=location["lng"]
-                    )
-                case "ZERO_RESULTS":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="찾을 수 없는 주소입니다."
-                    )
-                case "OVER_DAILY_LIMIT":
-                    raise HTTPException(
-                        status_code=response.status_code,
-                        detail="API 키가 누락되었거나 잘못되었습니다.",
-                    )
-                case "OVER_QUERY_LIMIT":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="할당량이 초과되었습니다."
-                    )
-                case "REQUEST_DENIED":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="요청이 거부되었습니다."
-                    )
-                case "INVALID_REQUEST":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="입력값이 누락되었습니다."
-                    )
-                case "UNKNOWN_ERROR":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="서버 내부 오류가 발생했습니다."
-                    )
-                case _:
-                    raise HTTPException(
-                        status_code=response.status_code, detail="알 수 없는 상태 코드입니다."
-                    )
-
+            if status == "OK":
+                location = data["results"][0]["geometry"]["location"]
+                return GeocodeResponse(
+                    latitude=location["lat"], longitude=location["lng"]
+                )
         else:
             raise HTTPException(
                 status_code=response.status_code,
@@ -97,33 +119,10 @@ class GoogleMapsService:
             data = response.json()
             status = data.get("status")
 
-            match status:
-                case "OK":
-                    return data
-                case "ZERO_RESULTS":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="찾을 수 없는 주소입니다."
-                    )
-                case "OVER_QUERY_LIMIT":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="할당량이 초과되었습니다."
-                    )
-                case "REQUEST_DENIED":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="요청이 거부되었습니다."
-                    )
-                case "INVALID_REQUEST":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="입력값이 누락되었습니다."
-                    )
-                case "UNKNOWN_ERROR":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="서버 내부 오류가 발생했습니다."
-                    )
-                case _:
-                    raise HTTPException(
-                        status_code=response.status_code, detail="알 수 없는 상태 코드입니다."
-                    )
+            if status == "OK":
+                return data["results"][0]["formatted_address"]
+            else:
+                self.handle_status(response.status_code, status)
 
         else:
             raise HTTPException(
@@ -166,90 +165,16 @@ class GoogleMapsService:
         if response.status_code == 200:
             data = response.json()
             status = data.get("status")
-            match status:
-                case "OK":
-                    results = data["results"]
-                    if len(results) > 5:
-                        results = results[:5]
-
-                    response_results = []
-
-                    for result in results:
-                        latitude = result["geometry"]["location"]["lat"]
-                        longitude = result["geometry"]["location"]["lng"]
-                        compound_code = result["plus_code"]["compound_code"]
-                        global_code = result["plus_code"]["global_code"]
-
-                        if existing_location := crud.location.get_by_plus_code(
-                            db, compound_code=compound_code, global_code=global_code
-                        ):
-                            location = existing_location
-                        else:
-                            location = crud.location.create(
-                                db,
-                                obj_in=LocationCreate(
-                                    latitude=latitude,
-                                    longitude=longitude,
-                                    compound_code=compound_code,
-                                    global_code=global_code,
-                                ),
-                            )
-                        place_id = result["place_id"]
-
-                        if existing_place := crud.place.get_by_place_id(
-                            db, id=place_id
-                        ):
-                            place = existing_place
-                        else:
-                            place = crud.place.create(
-                                db,
-                                obj_in=PlaceCreate(
-                                    place_id=result["place_id"],
-                                    name=result["name"],
-                                    address=result["vicinity"],
-                                    user_ratings_total=result["user_ratings_total"]
-                                    if "user_ratings_total" in result
-                                    else 0,
-                                    rating=result["rating"]
-                                    if "rating" in result
-                                    else 0,
-                                    location_id=location.id,
-                                    place_types=result["types"],
-                                ),
-                            )
-
-                        response_results.append(place)
-
-                    return response_results
-                case "ZERO_RESULTS":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="찾을 수 없는 주소입니다."
+            if status == "OK":
+                results = data["results"][:5]
+                return [
+                    self.create_or_get_place(
+                        db, result, self.create_or_get_location(db, result).id
                     )
-                case "OVER_DAILY_LIMIT":
-                    raise HTTPException(
-                        status_code=response.status_code,
-                        detail="API 키가 누락되었거나 잘못되었습니다.",
-                    )
-                case "OVER_QUERY_LIMIT":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="할당량이 초과되었습니다."
-                    )
-                case "REQUEST_DENIED":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="요청이 거부되었습니다."
-                    )
-                case "INVALID_REQUEST":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="입력값이 누락되었습니다."
-                    )
-                case "UNKNOWN_ERROR":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="서버 내부 오류가 발생했습니다."
-                    )
-                case _:
-                    raise HTTPException(
-                        status_code=response.status_code, detail="알 수 없는 상태 코드입니다."
-                    )
+                    for result in results
+                ]
+            else:
+                self.handle_status(response.status_code, status)
 
         else:
             raise HTTPException(
@@ -274,38 +199,10 @@ class GoogleMapsService:
         if response.status_code == 200:
             data = response.json()
             status = data.get("status")
-            match status:
-                case "OK":
-                    return data["predictions"]
-                case "ZERO_RESULTS":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="찾을 수 없는 주소입니다."
-                    )
-                case "OVER_DAILY_LIMIT":
-                    raise HTTPException(
-                        status_code=response.status_code,
-                        detail="API 키가 누락되었거나 잘못되었습니다.",
-                    )
-                case "OVER_QUERY_LIMIT":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="할당량이 초과되었습니다."
-                    )
-                case "REQUEST_DENIED":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="요청이 거부되었습니다."
-                    )
-                case "INVALID_REQUEST":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="입력값이 누락되었습니다."
-                    )
-                case "UNKNOWN_ERROR":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="서버 내부 오류가 발생했습니다."
-                    )
-                case _:
-                    raise HTTPException(
-                        status_code=response.status_code, detail="알 수 없는 상태 코드입니다."
-                    )
+            if status == "OK":
+                return data["predictions"]
+            else:
+                self.handle_status(response.status_code, status)
 
         else:
             raise HTTPException(
@@ -330,38 +227,10 @@ class GoogleMapsService:
         if response.status_code == 200:
             data = response.json()
             status = data.get("status")
-            match status:
-                case "OK":
-                    return data["result"]
-                case "ZERO_RESULTS":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="찾을 수 없는 주소입니다."
-                    )
-                case "OVER_DAILY_LIMIT":
-                    raise HTTPException(
-                        status_code=response.status_code,
-                        detail="API 키가 누락되었거나 잘못되었습니다.",
-                    )
-                case "OVER_QUERY_LIMIT":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="할당량이 초과되었습니다."
-                    )
-                case "REQUEST_DENIED":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="요청이 거부되었습니다."
-                    )
-                case "INVALID_REQUEST":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="입력값이 누락되었습니다."
-                    )
-                case "UNKNOWN_ERROR":
-                    raise HTTPException(
-                        status_code=response.status_code, detail="서버 내부 오류가 발생했습니다."
-                    )
-                case _:
-                    raise HTTPException(
-                        status_code=response.status_code, detail="알 수 없는 상태 코드입니다."
-                    )
+            if status == "OK":
+                return data["result"]
+            else:
+                self.handle_status(response.status_code, status)
 
         else:
             raise HTTPException(

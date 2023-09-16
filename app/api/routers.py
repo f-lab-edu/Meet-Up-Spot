@@ -10,10 +10,10 @@ settings = get_app_settings()
 
 api_router = APIRouter()
 api_router.include_router(
-    place.router, prefix="/google_maps", tags=["google_maps"]
+    place.router, prefix="/places", tags=["google_maps"]
 )  # geocode 라우터 추가
 api_router.include_router(login.router, tags=["login"])
-api_router.include_router(user.router, prefix="/user", tags=["user"])
+api_router.include_router(user.router, prefix="/users", tags=["user"])
 api_router.include_router(user.admin_router, prefix="/admin", tags=["admin"])
 if settings.APP_ENV == AppEnvTypes.dev:
     api_router.include_router(api_test.test_router, prefix="/test", tags=["test"])

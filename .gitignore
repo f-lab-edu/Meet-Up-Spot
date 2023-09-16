@@ -160,3 +160,4 @@ cython_debug/
 #.idea/
 
 .vscode/
+app/api/endpoints/goolge_maps_api_test.py

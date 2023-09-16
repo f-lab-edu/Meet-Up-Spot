@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 
 # Shared properties
@@ -22,10 +22,9 @@ class LocationUpdate(LocationBase):
 
 
 class LocationInDBBase(LocationBase):
-    id: Optional[int] = None
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config:
-        orm_mode = True
+    id: Optional[int] = None
 
 
 # Additional properties to return via API

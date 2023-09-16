@@ -3,6 +3,7 @@ from typing import List
 from sqlalchemy.orm import Session
 
 from app.schemas.google_maps_api import GeocodeResponse
+from app.schemas.place import Place
 
 from .google_maps_services import GoogleMapsService
 from .midpoint_services import calculate_midpoint_from_addresses
@@ -15,7 +16,7 @@ class Recommender:
 
     def recommend_places(
         self, db: Session, addresses: List[str], radius: int = 1500
-    ) -> List[dict]:
+    ) -> List[Place]:
         try:
             if len(addresses) == 1:
                 geocoded_address = self.maps_service.geocode_address(addresses[0])
@@ -26,7 +27,7 @@ class Recommender:
                 midpoint: GeocodeResponse = calculate_midpoint_from_addresses(addresses)
 
                 if midpoint:
-                    places = self.maps_service.search_nearby_places(
+                    places: List[Place] = self.maps_service.search_nearby_places(
                         db, midpoint.latitude, midpoint.longitude, radius
                     )
                 else:

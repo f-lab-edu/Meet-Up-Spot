@@ -10,7 +10,7 @@ from app.core.config import get_app_settings
 from app.schemas.google_maps_api import GeocodeResponse
 from app.schemas.google_maps_api_log import GoogleMapsApiLogCreate
 from app.schemas.location import Location, LocationCreate
-from app.schemas.place import Place, PlaceCreate
+from app.schemas.place import AutoCompletedPlace, Place, PlaceCreate
 
 settings = get_app_settings()
 
@@ -182,12 +182,14 @@ class GoogleMapsService:
                 detail="Geocoding API 요청 중 오류가 발생했습니다.",
             )
 
-    def auto_complete_place(self, text: str):
+    # TODO: 위치 기반이 되야 할거 같음. 현재 위치를 기반으로 주변 장소를 검색하고, 그 장소들을 기반으로 추천을 해야할듯
+    def auto_complete_place(self, text: str) -> List[AutoCompletedPlace]:
         """
         장소 자동 완성 API 요청
         """
         params = {
             "input": text,
+            "language": "ko",
             "key": self.api_key,
         }
         response = requests.get(
@@ -200,7 +202,17 @@ class GoogleMapsService:
             data = response.json()
             status = data.get("status")
             if status == "OK":
-                return data["predictions"]
+                return [
+                    AutoCompletedPlace(
+                        address=prediction["description"],
+                        main_address=prediction["structured_formatting"]["main_text"],
+                        secondary_address=prediction["structured_formatting"][
+                            "secondary_text"
+                        ],
+                        place_id=prediction["place_id"],
+                    )
+                    for prediction in data["predictions"]
+                ]
             else:
                 self.handle_status(response.status_code, status)
 

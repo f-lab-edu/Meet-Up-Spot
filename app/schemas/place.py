@@ -6,12 +6,11 @@ from pydantic import BaseModel, ConfigDict
 # Shared properties
 class PlaceBase(BaseModel):
     place_id: str
-    name: str
+    name: str | None = None
     address: str
-    location_id: int
-    user_ratings_total: int
-    address: str
-    rating: float
+    location_id: int | None = None
+    user_ratings_total: int | None = None
+    rating: float | None = None
 
 
 class PlaceCreate(PlaceBase):
@@ -37,3 +36,8 @@ class Place(PlaceInDBBase):
 
 class PlaceInDB(PlaceInDBBase):
     pass
+
+
+class AutoCompletedPlace(PlaceBase):
+    main_address: str
+    secondary_address: str

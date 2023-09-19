@@ -30,16 +30,7 @@ class CRUDLocation(CRUDBase[Location, LocationCreate, LocationUpdate]):
         )
 
     def create(self, db: Session, *, obj_in: LocationCreate) -> Location:
-        db_obj = Location(
-            latitude=obj_in.latitude,
-            longitude=obj_in.longitude,
-            compound_code=obj_in.compound_code,
-            global_code=obj_in.global_code,
-        )
-        db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
-        return db_obj
+        return super().create(db, obj_in=obj_in)
 
 
 location = CRUDLocation(Location)

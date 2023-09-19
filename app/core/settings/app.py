@@ -113,6 +113,7 @@ class AppSettings(BaseAppSettings):
 
     GOOGLE_MAPS_API_KEY: str = os.environ["GOOGLE_MAPS_API_KEY"]
     GOOGLE_MAPS_NEARBY_SEARCH_URL: str = os.environ["GOOGLE_MAPS_NEARBY_SEARCH_URL"]
+    GOOGLE_MAPS_BASE_URL: str = "https://maps.googleapis.com/maps/api/geocode/json"
 
     class Config:
         case_sensitive = True

@@ -6,7 +6,7 @@ import requests
 
 from app.schemas.google_maps_api import GeocodeResponse
 
-from .google_maps_services import GoogleMapsService
+from .map_services import MapServices
 
 
 def calculate_midpoint(locations: List[GeocodeResponse]) -> GeocodeResponse:
@@ -59,14 +59,15 @@ def calculate_midpoint_harvarsine(lat1, lon1, lat2, lon2) -> GeocodeResponse:
     return GeocodeResponse(latitude=mid_lat, longitude=mid_lon)
 
 
-def calculate_midpoint_from_addresses(addresses: List[str]) -> GeocodeResponse:
+def calculate_midpoint_from_addresses(
+    map_services: MapServices, addresses: List[str]
+) -> GeocodeResponse:
     """
     Geocode한 주소들의 중간 위치를 계산합니다.
     """
-    google_maps_service = GoogleMapsService()
 
     geocoded_locations: List[GeocodeResponse] = [
-        google_maps_service.geocode_address(address) for address in addresses
+        map_services.get_address_from_lat_lng(address) for address in addresses
     ]
 
     if not geocoded_locations:

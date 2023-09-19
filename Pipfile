@@ -24,6 +24,7 @@ jinja2 = "*"
 tenacity = "*"
 httpx = "*"
 python-multipart = "*"
+googlemaps = "*"
 
 [dev-packages]
 pytest-cov = "*"

@@ -9,9 +9,7 @@ from .endpoints import login, places, users
 settings = get_app_settings()
 
 api_router = APIRouter()
-api_router.include_router(
-    places.router, prefix="/places", tags=["places"]
-)  # geocode 라우터 추가
+api_router.include_router(places.router, prefix="/places", tags=["places"])
 api_router.include_router(login.router, tags=["login"])
 api_router.include_router(users.router, prefix="/users", tags=["user"])
 api_router.include_router(users.admin_router, prefix="/admin", tags=["admin"])

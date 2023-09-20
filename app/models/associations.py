@@ -3,8 +3,8 @@ from sqlalchemy import Column, ForeignKey, Integer, Table
 from app.db.base_class import Base
 
 # pylint: disable=no-member
-user_place_association = Table(
-    "user_place_associations",
+user_interested_place_association = Table(
+    "user_interested_place_association",
     Base.metadata,
     Column("user_id", Integer, ForeignKey("user.id", ondelete="CASCADE")),
     Column("place_id", Integer, ForeignKey("place.id", ondelete="CASCADE")),

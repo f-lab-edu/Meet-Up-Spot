@@ -5,7 +5,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
-from app.models.associations import place_type_association, user_place_association
+from app.models.associations import user_interested_place_association
 
 
 class User(Base):
@@ -17,6 +17,6 @@ class User(Base):
     is_superuser = Column(Boolean(), default=False)
 
     google_maps_api_logs = relationship("GoogleMapsApiLog", back_populates="user")
-    places = relationship(
-        "Place", secondary=user_place_association, back_populates="users"
+    interested_places = relationship(
+        "Place", secondary=user_interested_place_association, back_populates="users"
     )

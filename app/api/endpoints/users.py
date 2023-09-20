@@ -55,7 +55,7 @@ def create_user(
     return user
 
 
-@router.put("/", response_model=schemas.User)
+@router.put("/me", response_model=schemas.User)
 def update_user_me(
     *,
     db: Session = Depends(deps.get_db),
@@ -79,7 +79,7 @@ def update_user_me(
     return user
 
 
-@router.get("/", response_model=schemas.User)
+@router.get("/me", response_model=schemas.User)
 def read_user_me(
     db: Session = Depends(deps.get_db),
     current_user: models.User = Depends(user_service.get_current_active_user),

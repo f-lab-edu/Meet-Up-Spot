@@ -1,4 +1,5 @@
 from typing import Dict, Generator
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -7,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_app_settings
 from app.core.settings.app import AppSettings
 from app.db.session import SessionLocal
+from app.services.map_services import MapServices
 from app.tests.utils.user import authentication_token_from_email
 from app.tests.utils.utils import get_superuser_token_headers
 from main import app
@@ -44,3 +46,11 @@ def normal_user_token_headers(
         email=settings.EMAIL_TEST_USER,
         db=db,
     )
+
+
+@pytest.fixture
+def map_service():
+    with patch("app.services.map_services.googlemaps.Client") as MockClient:
+        mock_client = MockClient()
+        service = MapServices(mock_client)
+        yield service

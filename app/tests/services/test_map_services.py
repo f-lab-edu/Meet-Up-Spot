@@ -9,7 +9,6 @@ from app.tests.utils.places import (
     mock_location,
     mock_place_api_response,
     mock_place_obj,
-    mock_place_obj_new,
 )
 
 
@@ -58,18 +57,19 @@ def test_create_or_get_place_existing(map_service: MapServices, db):
     result = map_service.create_or_get_place(
         db, mock_place_api_response, mock_location.id
     )
-
+    db.query().filter().first.assert_called_once()
     assert result == mock_place_obj
 
 
 @pytest.mark.parametrize("db", [MagicMock()])
 def test_create_or_get_place_new(map_service: MapServices, db):
     db.query().filter().first.return_value = None
-    crud.place.create = MagicMock(return_value=mock_place_obj_new)
+    crud.place.create = MagicMock(return_value=mock_place_obj)
 
     result = map_service.create_or_get_place(
         db, mock_place_api_response, mock_location.id
     )
 
-    assert result == mock_place_obj_new
+    assert result == mock_place_obj
+    db.query().filter().first.assert_called_once()
     crud.place.create.assert_called()

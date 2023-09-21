@@ -48,7 +48,7 @@ class CRUDPlace(CRUDBase[Place, PlaceCreate, PlaceUpdate]):
             update_data = obj_in
         else:
             update_data = obj_in.model_dump(exclude_unset=True)
-        if update_data["place_types"]:
+        if update_data.get("place_types"):
             type_obejcts = self.convert_strings_to_place_types(
                 db, update_data["place_types"]
             )

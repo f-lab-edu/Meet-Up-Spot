@@ -9,6 +9,7 @@ from app.api.deps import get_db
 from app.core import settings
 from app.core.config import get_app_settings
 from app.schemas.google_maps_api import GeocodeResponse
+from app.schemas.msg import Msg
 from app.schemas.place import AutoCompletedPlace, Place
 from app.services import user_service
 from app.services.map_services import MapServices
@@ -81,30 +82,45 @@ async def read_places(
     return places
 
 
-@router.post("/{place_id}/mark", response_model=Place)
+@router.post("/{place_id}/mark", response_model=Msg)
 async def mark_interest(
     place_id: str,
+    db: Session = Depends(get_db),
     current_user: models.User = Depends(user_service.get_current_active_user),
-    Session=Depends(get_db),
 ):
     """
     mark up place.
 
     """
-    pass
+    place = crud.place.get_by_place_id(db, id=place_id)
+    if not place:
+        raise HTTPException(status_code=404, detail="Place not found")
+    if crud.user.has_interest(db, current_user, place):
+        raise HTTPException(status_code=400, detail="Already marked place")
+
+    crud.user.mark_interest(db, current_user, place)
+    return {"msg": "Place successfully marked"}
 
 
-@router.delete("/{place_id}/unmark", response_model=Place)
+@router.delete("/{place_id}/unmark", response_model=Msg)
 async def unmark_interest(
     place_id: str,
+    db: Session = Depends(get_db),
     current_user: models.User = Depends(user_service.get_current_active_user),
-    Session=Depends(get_db),
 ):
     """
     unmark place.
 
     """
-    pass
+    place = crud.place.get_by_place_id(db, id=place_id)
+
+    if not place:
+        raise HTTPException(status_code=404, detail="Place not found")
+    if not crud.user.has_interest(db, current_user, place):
+        raise HTTPException(status_code=400, detail="Not marked place")
+
+    crud.user.unmark_interest(db, current_user, place)
+    return {"msg": "Place successfully unmarked"}
 
 
 @router.get("/completed-places/{address}", response_model=List[AutoCompletedPlace])

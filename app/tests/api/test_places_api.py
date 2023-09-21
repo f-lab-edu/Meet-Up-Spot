@@ -12,6 +12,7 @@ from app.tests.utils.places import (
     places_list,
     test_address,
 )
+from app.tests.utils.utils import random_email, random_lower_string
 
 
 def test_request_places(client: TestClient, db: Session, settings: AppSettings):
@@ -62,7 +63,6 @@ def test_read_place_by_id(
             f"{settings.API_V1_STR}/places/{test_place_id}",
             headers=normal_user_token_headers,
         )
-
         assert response.status_code == 200
         assert response.json() == mock_place_obj.model_dump()
         mock_get_place.assert_called_once_with(ANY, id=test_place_id)
@@ -120,3 +120,57 @@ def test_get_distance_matrix(client: TestClient, db: Session, settings: AppSetti
         mock_distance_matrix.assert_called_once_with(
             origins, test_destination_id, "driving", "ko"
         )
+
+
+def test_mark_interest(
+    client: TestClient,
+    db: Session,
+    settings: AppSettings,
+    normal_user_token_headers: Dict[str, str],
+):
+    test_place_id = mock_place_obj.place_id
+
+    with patch("app.api.deps.get_db", return_value=db), patch(
+        "app.crud.place.get_by_place_id", return_value=mock_place_obj
+    ) as mock_get_place, patch(
+        "app.crud.user.has_interest", return_value=False
+    ) as mock_has_interest, patch(
+        "app.crud.user.mark_interest"
+    ) as mock_mark_interest:
+        response = client.post(
+            f"{settings.API_V1_STR}/places/{test_place_id}/mark",
+            headers=normal_user_token_headers,
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {"msg": "Place successfully marked"}
+        mock_get_place.assert_called_once_with(ANY, id=test_place_id)
+        mock_has_interest.assert_called_once_with(ANY, ANY, mock_place_obj)
+        mock_mark_interest.assert_called_once_with(ANY, ANY, mock_place_obj)
+
+
+def test_unmark_interest(
+    client: TestClient,
+    db: Session,
+    settings: AppSettings,
+    normal_user_token_headers: Dict[str, str],
+):
+    test_place_id = mock_place_obj.place_id
+
+    with patch("app.api.deps.get_db", return_value=db), patch(
+        "app.crud.place.get_by_place_id", return_value=mock_place_obj
+    ) as mock_get_place, patch(
+        "app.crud.user.has_interest", return_value=True
+    ) as mock_has_interest, patch(
+        "app.crud.user.unmark_interest"
+    ) as mock_unmark_interest:
+        response = client.delete(
+            f"{settings.API_V1_STR}/places/{test_place_id}/unmark",
+            headers=normal_user_token_headers,
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {"msg": "Place successfully unmarked"}
+        mock_get_place.assert_called_once_with(ANY, id=test_place_id)
+        mock_has_interest.assert_called_once_with(ANY, ANY, mock_place_obj)
+        mock_unmark_interest.assert_called_once_with(ANY, ANY, mock_place_obj)

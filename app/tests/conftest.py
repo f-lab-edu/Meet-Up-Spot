@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_app_settings
 from app.core.settings.app import AppSettings
+from app.db.base import Base
 from app.db.session import SessionLocal
 from app.services.map_services import MapServices
 from app.tests.utils.user import authentication_token_from_email
@@ -14,9 +15,15 @@ from app.tests.utils.utils import get_superuser_token_headers
 from main import app
 
 
-@pytest.fixture(scope="session")
+# pylint: disable=no-member
+@pytest.fixture(scope="module")
 def db() -> Generator:
-    yield SessionLocal()
+    db = SessionLocal()
+    yield db
+    for table in reversed(Base.metadata.sorted_tables):
+        db.execute(table.delete())
+    db.commit()
+    db.close()
 
 
 @pytest.fixture(scope="module")

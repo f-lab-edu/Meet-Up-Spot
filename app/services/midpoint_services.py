@@ -60,14 +60,15 @@ def calculate_midpoint_harvarsine(lat1, lon1, lat2, lon2) -> GeocodeResponse:
 
 
 def calculate_midpoint_from_addresses(
-    map_services: MapServices, addresses: List[str]
+    map_services: MapServices, db, user, addresses: List[str]
 ) -> GeocodeResponse:
     """
     Geocode한 주소들의 중간 위치를 계산합니다.
     """
 
     geocoded_locations: List[GeocodeResponse] = [
-        map_services.get_address_from_lat_lng(address) for address in addresses
+        map_services.get_lat_lng_from_address(db, user, address)
+        for address in addresses
     ]
 
     if not geocoded_locations:

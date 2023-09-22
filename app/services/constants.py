@@ -87,3 +87,32 @@ class PlaceType(Enum):
     TOURIST_ATTRACTION = "tourist_attraction"
     TRAIN_STATION = "train_station"
     TRANSIT_STATION = "transit_station"
+
+
+GOOGLE_MAPS_URL = {
+    "geocode_address": "https://maps.googleapis.com/maps/api/geocode/json",
+    "reverse_geocode": "https://maps.googleapis.com/maps/api/geocode/json",
+    "auto_complete_place": "https://maps.googleapis.com/maps/api/place/autocomplete/json",
+    "search_nearby_places": "https://maps.googleapis.com/maps/api/place/nearbysearch/json",
+    "get_place_detail": "https://maps.googleapis.com/maps/api/place/details/json",
+    "calculate_distance_matrix": "https://maps.googleapis.com/maps/api/distancematrix/json",
+}
+
+
+class StatusDetail(str, Enum):
+    OK = "OK"
+    ZERO_RESULTS = "결과를 찾을 수 없습니다."
+    OVER_DAILY_LIMIT = "API 키가 누락되었거나 잘못되었습니다."
+    OVER_QUERY_LIMIT = "할당량이 초과되었습니다."
+    REQUEST_DENIED = "요청이 거부되었습니다."
+    INVALID_REQUEST = "입력값이 누락되었습니다."
+    UNKNOWN_ERROR = "서버 내부 오류가 발생했습니다."
+
+
+class MapsFunction(str, Enum):
+    GEOCODE_ADDRESS = "geocode_address"
+    REVERSE_GEOCODE = "reverse_geocode"
+    AUTO_COMPLETE_PLACE = "auto_complete_place"
+    SEARCH_NEARBY_PLACES = "search_nearby_places"
+    GET_PLACE_DETAIL = "get_place_detail"
+    CALCULATE_DISTANCE_MATRIX = "calculate_distance_matrix"

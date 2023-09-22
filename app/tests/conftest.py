@@ -21,6 +21,8 @@ def db() -> Generator:
     db = SessionLocal()
     yield db
     for table in reversed(Base.metadata.sorted_tables):
+        if table == Base.metadata.tables["user"]:
+            continue
         db.execute(table.delete())
     db.commit()
     db.close()

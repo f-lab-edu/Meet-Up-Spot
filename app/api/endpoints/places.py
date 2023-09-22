@@ -22,16 +22,23 @@ settings = get_app_settings()
 map_services = MapServices(
     map_client=googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
 )
-recommend_services = Recommender(map_services=map_services)
 
 
 # TODO: 중간장소 계산만 하는 엔드포인트랑 나눠야함 밑에 여기는 추천만 하는거
 @router.post("/request-places/", response_model=List[Place])
-async def request_places(addresses: List[str], db: Session = Depends(get_db)):
+async def request_places(
+    addresses: List[str],
+    current_user: models.User = Depends(user_service.get_current_active_superuser),
+    db: Session = Depends(get_db),
+):
     """
     request meeting places
     """
-    complete_addresses = map_services.get_complete_addresses(addresses)
+    recommend_services = Recommender(db, current_user, map_services)
+
+    complete_addresses = map_services.get_complete_addresses(
+        db, current_user, addresses
+    )
 
     results: List[Place] = recommend_services.recommend_places(db, complete_addresses)
     return results
@@ -40,11 +47,21 @@ async def request_places(addresses: List[str], db: Session = Depends(get_db)):
 # TODO: 여기는 그냥 기본적으로 장소를 받아서 중간 지점 계산
 # 장소 받아서 중간 지점 계산
 @router.post("/request-midpoint/", response_model=GeocodeResponse)
-async def request_midpoint(addresses: list[str], db: Session = Depends(get_db)):
+async def request_midpoint(
+    addresses: list[str],
+    current_user: models.User = Depends(user_service.get_current_active_superuser),
+    db: Session = Depends(get_db),
+):
     """
     request midpoint
     """
-    complete_addresses = map_services.get_complete_addresses(addresses)
+    recommend_services = Recommender(
+        db=db, user=current_user, map_services=map_services
+    )
+
+    complete_addresses = map_services.get_complete_addresses(
+        db, current_user, addresses
+    )
     midpoint: GeocodeResponse = recommend_services.recommend_places(
         db, complete_addresses
     )
@@ -124,21 +141,31 @@ async def unmark_interest(
 
 
 @router.get("/completed-places/{address}", response_model=List[AutoCompletedPlace])
-async def read_auto_completed_places(address: str, db: Session = Depends(get_db)):
+async def read_auto_completed_places(
+    address: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(user_service.get_current_active_user),
+):
     """
     retrieve some auto completed places
     """
-    places = map_services.auto_complete_place(address)
+    places = map_services.auto_complete_place(db, current_user, address)
     return places
 
 
-@router.post("/{destination_id}/get-travel-info", response_model=List[Tuple[str, str]])
+@router.post(
+    "/{destination_id}/get-travel-info", response_model=List[Tuple[str, str, str]]
+)
 def get_distance_matrix(
-    origins: List[str], destination_id: str, mode="driving", language="ko"
+    origins: List[str],
+    destination_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(user_service.get_current_active_user),
+    mode="driving",
 ) -> List[Tuple[str, str]]:
     try:
         distances = map_services.get_distance_matrix_for_places(
-            origins, destination_id, mode, language
+            db, current_user, origins, destination_id, mode
         )
         return distances
 

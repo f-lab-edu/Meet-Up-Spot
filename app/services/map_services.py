@@ -9,7 +9,12 @@ from sqlalchemy.orm import Session
 from app import crud
 from app.core.config import get_app_settings
 from app.models.user import User
-from app.schemas.google_maps_api import GeocodeResponse
+from app.schemas.google_maps_api import (
+    DistanceInfo,
+    DistanceMatrixRequest,
+    GeocodeResponse,
+    ReverseGeocodeResponse,
+)
 from app.schemas.google_maps_api_log import GoogleMapsApiLogCreate
 from app.schemas.location import Location, LocationCreate
 from app.schemas.place import AutoCompletedPlace, Place, PlaceCreate
@@ -18,6 +23,7 @@ from app.services.constants import (
     MapsFunction,
     PlaceType,
     StatusDetail,
+    TravelMode,
 )
 
 settings = get_app_settings()
@@ -37,9 +43,6 @@ class CustomException(Exception):
 
 class NoAddressException(Exception):
     pass
-
-
-DistanceInfo = namedtuple("DistanceInfo", ["address", "distance", "duration"])
 
 
 def add_api_request_log(api_call):
@@ -137,15 +140,17 @@ class MapAdapter:
         self,
         db,
         user,
-        origins,
-        destination,
-        mode="transit",
-        language="ko",
-    ):
+        **kwargs,
+    ) -> List[DistanceInfo]:
         # Using the distance_matrix method from the official library
+        origins = kwargs["origins"]
+        destinations = kwargs["destinations"]
+        mode = kwargs["mode"]
+        language = kwargs["language"]
+
         matrix = self.client.distance_matrix(
             origins=origins,
-            destinations=self.format_place_id(destination),
+            destinations=self.format_place_id(destinations),
             mode=mode,
             language=language,
         )
@@ -225,7 +230,7 @@ class MapServices:
         if not result:
             raise ZeroResultException("No reverse geocoding results found")
 
-        return result[0]["formatted_address"]
+        return ReverseGeocodeResponse(address=result[0]["formatted_address"])
 
     def search_nearby_places(
         self,
@@ -284,14 +289,15 @@ class MapServices:
             for prediction in results
         ]
 
+    # TODO: 현재는 transit만 됨
     def get_distance_matrix_for_places(
         self,
         db: Session,
         user: User,
-        origins,
-        destination,
-        mode="driving",
-    ):
+        origins: str | List[str],
+        destination: str,
+        mode: str,
+    ) -> List[DistanceInfo]:
         """
         origins: list of origins
         destination: single destination
@@ -304,15 +310,18 @@ class MapServices:
             raise ValueError(
                 "Invalid mode selected. Choose between 'driving', 'walking', or 'transit'."
             )
+        params = DistanceMatrixRequest(
+            origins=origins,
+            destinations=destination,
+            mode=TravelMode[mode.upper()].value
+            if mode.upper() in [keys for keys in TravelMode.__members__]
+            else TravelMode.TRANSIT.value,
+            language="ko",
+        )
 
-        params = {
-            "origins": origins,
-            "destination": destination,
-            "mode": mode,
-            "language": "ko",
-        }
-
-        distances = self.map_adapter.calculate_distance_matrix(db, user, **params)
+        distances: DistanceInfo = self.map_adapter.calculate_distance_matrix(
+            db, user, **params.model_dump()
+        )
         if not distances:
             raise ZeroResultException("No distance matrix results found")
 

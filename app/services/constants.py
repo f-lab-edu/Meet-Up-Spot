@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Dict, Optional, Union
 
 
 class PlaceType(Enum):
@@ -116,3 +117,29 @@ class MapsFunction(str, Enum):
     SEARCH_NEARBY_PLACES = "search_nearby_places"
     GET_PLACE_DETAIL = "get_place_detail"
     CALCULATE_DISTANCE_MATRIX = "calculate_distance_matrix"
+
+
+class TravelMode(str, Enum):
+    DRIVING = "driving"
+    WALKING = "walking"
+    BICYCLING = "bicycling"
+    TRANSIT = "transit"
+
+
+class TrafficModel(str, Enum):
+    BEST_GUESS = "best_guess"
+    PESSIMISTIC = "pessimistic"
+    OPTIMISTIC = "optimistic"
+
+
+class TransitMode(str, Enum):
+    BUS = "bus"
+    SUBWAY = "subway"
+    TRAIN = "train"
+    TRAM = "tram"
+    RAIL = "rail"
+
+
+class TransitRoutingPreference(str, Enum):
+    LESS_WALKING = "less_walking"
+    FEWER_TRANSFERS = "fewer_transfers"

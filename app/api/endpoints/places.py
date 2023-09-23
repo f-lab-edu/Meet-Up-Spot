@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, NamedTuple, Tuple
 
 import googlemaps
 from fastapi import APIRouter, Depends, HTTPException
@@ -8,10 +8,11 @@ from app import crud, models
 from app.api.deps import get_db
 from app.core import settings
 from app.core.config import get_app_settings
-from app.schemas.google_maps_api import GeocodeResponse
+from app.schemas.google_maps_api import DistanceInfo, GeocodeResponse
 from app.schemas.msg import Msg
 from app.schemas.place import AutoCompletedPlace, Place
 from app.services import user_service
+from app.services.constants import TravelMode
 from app.services.map_services import MapServices
 from app.services.recommend_services import Recommender
 
@@ -159,10 +160,10 @@ async def read_auto_completed_places(
 def get_distance_matrix(
     origins: List[str],
     destination_id: str,
+    mode: str = TravelMode.TRANSIT.value,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(user_service.get_current_active_user),
-    mode="driving",
-) -> List[Tuple[str, str]]:
+) -> List[DistanceInfo]:
     try:
         distances = map_services.get_distance_matrix_for_places(
             db, current_user, origins, destination_id, mode

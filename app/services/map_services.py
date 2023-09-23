@@ -1,31 +1,27 @@
 import logging
+from collections import namedtuple
 from functools import wraps
-from typing import Dict, List
+from typing import List
 
 import googlemaps
-import requests
-from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app import crud
-from app.api import deps
 from app.core.config import get_app_settings
+from app.models.user import User
 from app.schemas.google_maps_api import GeocodeResponse
 from app.schemas.google_maps_api_log import GoogleMapsApiLogCreate
 from app.schemas.location import Location, LocationCreate
 from app.schemas.place import AutoCompletedPlace, Place, PlaceCreate
-from app.services.constants import PlaceType
+from app.services.constants import (
+    GOOGLE_MAPS_URL,
+    MapsFunction,
+    PlaceType,
+    StatusDetail,
+)
 
 settings = get_app_settings()
 
-STATUS_DETAIL_MAPPING = {
-    "ZERO_RESULTS": "찾을 수 없는 주소입니다.",
-    "OVER_DAILY_LIMIT": "API 키가 누락되었거나 잘못되었습니다.",
-    "OVER_QUERY_LIMIT": "할당량이 초과되었습니다.",
-    "REQUEST_DENIED": "요청이 거부되었습니다.",
-    "INVALID_REQUEST": "입력값이 누락되었습니다.",
-    "UNKNOWN_ERROR": "서버 내부 오류가 발생했습니다.",
-}
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -39,6 +35,60 @@ class CustomException(Exception):
     pass
 
 
+class NoAddressException(Exception):
+    pass
+
+
+DistanceInfo = namedtuple("DistanceInfo", ["address", "distance", "duration"])
+
+
+def add_api_request_log(api_call):
+    @wraps(api_call)
+    def wrapper(self, db, user, *args, **kwargs):
+        try:
+            results = api_call(self, db, user, *args, **kwargs)
+            if not results or (
+                (
+                    type(results) == dict
+                    and results.get("status") == StatusDetail.ZERO_RESULTS.name
+                )
+            ):
+                raise ZeroResultException(
+                    {"status": 200, "detail": StatusDetail.ZERO_RESULTS}
+                )
+
+            if api_call.__name__ == MapsFunction.CALCULATE_DISTANCE_MATRIX:
+                for result in results:
+                    if result.address is None:
+                        raise NoAddressException(
+                            {
+                                "status": 200,
+                                "detail": StatusDetail.INVALID_REQUEST,
+                            }
+                        )
+                    elif result.distance is None or result.duration is None:
+                        raise ZeroResultException(
+                            {"status": 200, "detail": StatusDetail.ZERO_RESULTS}
+                        )
+
+            return results
+        except Exception as error:
+            crud.google_maps_api_log.create(
+                db,
+                obj_in=GoogleMapsApiLogCreate(
+                    request_url=GOOGLE_MAPS_URL[api_call.__name__],
+                    status_code=400,
+                    reason=str(error),
+                    payload=str(args) + "," + str(kwargs),
+                    print_result=str(error),
+                    user_id=user.id,
+                ),
+            )
+            raise CustomException(error)
+
+    return wrapper
+
+
 class MapAdapter:
     def __init__(self, client=None, db=None):
         self.client = client
@@ -47,15 +97,19 @@ class MapAdapter:
     def format_place_id(self, place_id):
         return f"place_id:{place_id}"
 
-    def geocode_address(self, address):
-        result = self.client.geocode(address)
-        return result
+    @add_api_request_log
+    def geocode_address(self, db, user, address):
+        return self.client.geocode(address)
 
-    def reverse_geocode(self, latitude, longitude):
+    @add_api_request_log
+    def reverse_geocode(self, db, user, latitude, longitude):
         return self.client.reverse_geocode((latitude, longitude))
 
+    @add_api_request_log
     def search_nearby_places(
         self,
+        db,
+        user,
         latitude,
         longitude,
         radius=1000,
@@ -70,47 +124,49 @@ class MapAdapter:
             type=place_type,
         )
 
-    def auto_complete_place(self, text: str, language="ko") -> List[dict]:
+    @add_api_request_log
+    def auto_complete_place(self, db, user, text: str, language="ko") -> List[dict]:
         return self.client.places_autocomplete(text, language=language)
 
-    def get_place_detail(self, place_id: str):
+    @add_api_request_log
+    def get_place_detail(self, db, user, place_id: str):
         return self.client.place(place_id=place_id)
 
+    @add_api_request_log
     def calculate_distance_matrix(
         self,
+        db,
+        user,
         origins,
         destination,
         mode="transit",
         language="ko",
     ):
         # Using the distance_matrix method from the official library
-        print(mode)
-        try:
-            matrix = self.client.distance_matrix(
-                origins=origins,
-                destinations=self.format_place_id(destination),
-                mode=mode,
-                language=language,
-            )
-            print(matrix)
+        matrix = self.client.distance_matrix(
+            origins=origins,
+            destinations=self.format_place_id(destination),
+            mode=mode,
+            language=language,
+        )
 
-            distances = []
-            for row in matrix["rows"]:
-                for element in row["elements"]:
-                    if element["status"] == "ZERO_RESULTS":
-                        raise HTTPException(
-                            status_code=400,
-                            detail="No route found for one or more origin-destination pairs.",
-                        )
+        distances = []
+        for idx, row in enumerate(matrix["rows"]):
+            for element in row["elements"]:
+                if element["status"] != "OK":
+                    distances.append(
+                        DistanceInfo(matrix["origin_addresses"][idx], None, None)
+                    )
+                    continue
 
-                    distance = element["distance"]["text"]
-                    duration = element["duration"]["text"]
+                distance = element["distance"]["text"]
+                duration = element["duration"]["text"]
 
-                    distances.append((distance, duration))
+                distances.append(
+                    DistanceInfo(matrix["origin_addresses"][idx], distance, duration)
+                )
 
-            return distances
-        except Exception as e:
-            raise CustomException(e)
+        return distances
 
 
 class MapServices:
@@ -155,17 +211,17 @@ class MapServices:
             ),
         )
 
-    def get_lat_lng_from_address(self, address: str) -> GeocodeResponse:
-        results = self.map_adapter.geocode_address(address)
-
-        if not results:
-            raise ZeroResultException("No geocoding results found")
-
+    def get_lat_lng_from_address(
+        self, db: Session, user: User, address: str
+    ) -> GeocodeResponse:
+        results = self.map_adapter.geocode_address(db, user, address)
         location = results[0]["geometry"]["location"]
         return GeocodeResponse(latitude=location["lat"], longitude=location["lng"])
 
-    def get_address_from_lat_lng(self, latitude: float, longitude: float) -> str:
-        result = self.map_adapter.reverse_geocode(latitude, longitude)
+    def get_address_from_lat_lng(
+        self, db: Session, user: User, latitude: float, longitude: float
+    ) -> str:
+        result = self.map_adapter.reverse_geocode(db, user, latitude, longitude)
         if not result:
             raise ZeroResultException("No reverse geocoding results found")
 
@@ -174,8 +230,9 @@ class MapServices:
     def search_nearby_places(
         self,
         db: Session,
-        latitude,
-        longitude,
+        user: User,
+        latitude: float,
+        longitude: float,
         radius=1000,
         language="ko",
         place_type=PlaceType.CAFE.value,
@@ -184,7 +241,7 @@ class MapServices:
         주변 지역 검색 API 요청
         """
         response = self.map_adapter.search_nearby_places(
-            latitude, longitude, radius=radius, language="ko"
+            db, user, latitude, longitude, radius=radius, language="ko"
         )
         results = response["results"]
         if not results:
@@ -202,15 +259,21 @@ class MapServices:
                 continue
         return places
 
-    def get_complete_addresses(self, addresses: List[str]) -> List[str]:
+    def get_complete_addresses(
+        self, db: Session, user: User, addresses: List[str]
+    ) -> List[str]:
         complete_addresses = []
         for address in addresses:
-            complete_addresses.append(self.auto_complete_place(address)[0].address)
+            complete_addresses.append(
+                self.auto_complete_place(db, user, address)[0].address
+            )
         return complete_addresses
 
     # TODO: 위치 기반이 되야 할거 같음. 현재 위치를 기반으로 주변 장소를 검색하고, 그 장소들을 기반으로 추천을 해야할듯
-    def auto_complete_place(self, text: str) -> List[AutoCompletedPlace]:
-        results = self.map_adapter.auto_complete_place(text)
+    def auto_complete_place(
+        self, db: Session, user: User, text: str
+    ) -> List[AutoCompletedPlace]:
+        results = self.map_adapter.auto_complete_place(db, user, text)
         return [
             AutoCompletedPlace(
                 address=prediction["description"],
@@ -223,10 +286,11 @@ class MapServices:
 
     def get_distance_matrix_for_places(
         self,
+        db: Session,
+        user: User,
         origins,
         destination,
         mode="driving",
-        language="ko",
     ):
         """
         origins: list of origins
@@ -240,17 +304,15 @@ class MapServices:
             raise ValueError(
                 "Invalid mode selected. Choose between 'driving', 'walking', or 'transit'."
             )
-        print("mode", mode)
 
         params = {
             "origins": origins,
             "destination": destination,
             "mode": mode,
-            "language": language,
+            "language": "ko",
         }
 
-        distances = self.map_adapter.calculate_distance_matrix(**params)
-        print("distances", distances)
+        distances = self.map_adapter.calculate_distance_matrix(db, user, **params)
         if not distances:
             raise ZeroResultException("No distance matrix results found")
 

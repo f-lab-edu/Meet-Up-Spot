@@ -1,4 +1,4 @@
-name: CI Workflow with SonarCloud and Codecov
+name: CI Workflow with Codecov
 
 on:
   push:

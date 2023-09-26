@@ -30,7 +30,6 @@ class CRUDPlace(CRUDBase[Place, PlaceCreate, PlaceUpdate]):
             place_id=obj_in.place_id,
             name=obj_in.name,
             address=obj_in.address,
-            location_id=obj_in.location_id,
             rating=obj_in.rating,
             user_ratings_total=obj_in.user_ratings_total,
         )

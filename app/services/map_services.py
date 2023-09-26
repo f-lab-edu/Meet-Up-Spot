@@ -214,7 +214,7 @@ class MapServices:
             ),
         )
 
-    def create_or_get_place(self, db, result, location_id) -> Place:
+    def create_or_get_place(self, db, result) -> Place:
         place_id = result["place_id"]
         existing_place = crud.place.get_by_place_id(db, id=place_id)
 
@@ -226,7 +226,6 @@ class MapServices:
                 address=result["vicinity"],
                 user_ratings_total=result.get("user_ratings_total", 0),
                 rating=result.get("rating", 0),
-                location_id=location_id,
                 place_types=result["types"],
             ),
         )
@@ -263,12 +262,15 @@ class MapServices:
             db, user, latitude, longitude, radius=radius, language="ko"
         )
         results = response["results"]
-
+        print(results)
         places = []
         for result in results[:20]:
             try:
-                location = self.create_or_get_location(db, result)
-                place = self.create_or_get_place(db, result, location.id)
+                # location = self.create_or_get_location(db, result)
+                place = self.create_or_get_place(
+                    db,
+                    result,
+                )
                 places.append(place)
             except Exception as e:
                 logging.error(f"Failed to process result {result}. Error: {e}")

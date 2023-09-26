@@ -11,8 +11,6 @@ class Location(Base):
     compound_code = Column(String(255), nullable=False, index=True)
     global_code = Column(String(255), nullable=False, index=True)
 
-    places = relationship("Place", back_populates="location")
-
     __table_args__ = (
         UniqueConstraint("compound_code", "global_code", name="uq_location_codes"),
     )

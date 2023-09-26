@@ -1,4 +1,4 @@
-from typing import List, NamedTuple, Tuple
+from typing import List
 
 import googlemaps
 from fastapi import APIRouter, Depends, HTTPException
@@ -8,12 +8,12 @@ from app import crud, models
 from app.api.deps import get_db
 from app.core import settings
 from app.core.config import get_app_settings
-from app.schemas.google_maps_api import DistanceInfo, GeocodeResponse
+from app.schemas.google_maps_api import DistanceInfo
 from app.schemas.msg import Msg
 from app.schemas.place import AutoCompletedPlace, Place
 from app.services import user_service
-from app.services.constants import TravelMode
-from app.services.map_services import MapServices
+from app.services.constants import PlaceType, TravelMode
+from app.services.map_services import MapServices, ZeroResultException
 from app.services.recommend_services import Recommender
 
 router = APIRouter()
@@ -27,46 +27,32 @@ map_services = MapServices(
 
 # TODO: 중간장소 계산만 하는 엔드포인트랑 나눠야함 밑에 여기는 추천만 하는거
 @router.post("/request-places/", response_model=List[Place])
-async def request_places(
+def request_places(
     addresses: List[str],
+    place_type: PlaceType = PlaceType.CAFE.value,
     current_user: models.User = Depends(user_service.get_current_active_superuser),
     db: Session = Depends(get_db),
 ):
     """
     request meeting places
     """
-    recommend_services = Recommender(db, current_user, map_services)
+    try:
+        recommend_services = Recommender(db, current_user, map_services)
+        complete_addresses = map_services.get_complete_addresses(
+            db, current_user, addresses
+        )
 
-    complete_addresses = map_services.get_complete_addresses(
-        db, current_user, addresses
-    )
+        results: List[Place] = recommend_services.recommend_places(
+            db, complete_addresses, place_type
+        )
 
-    results: List[Place] = recommend_services.recommend_places(db, complete_addresses)
-    return results
-
-
-# TODO: 여기는 그냥 기본적으로 장소를 받아서 중간 지점 계산
-# 장소 받아서 중간 지점 계산
-@router.post("/request-midpoint/", response_model=GeocodeResponse)
-async def request_midpoint(
-    addresses: list[str],
-    current_user: models.User = Depends(user_service.get_current_active_superuser),
-    db: Session = Depends(get_db),
-):
-    """
-    request midpoint
-    """
-    recommend_services = Recommender(
-        db=db, user=current_user, map_services=map_services
-    )
-
-    complete_addresses = map_services.get_complete_addresses(
-        db, current_user, addresses
-    )
-    midpoint: GeocodeResponse = recommend_services.recommend_places(
-        db, complete_addresses
-    )
-    return midpoint
+        return results
+    except Exception as error:
+        if isinstance(error, ZeroResultException):
+            error_msg = error.args[0]["detail"]
+            raise HTTPException(status_code=204, detail=error_msg)
+        else:
+            raise HTTPException(status_code=404, detail=f"An error occurred: {error}")
 
 
 @router.get("/{place_id}", response_model=Place)
@@ -97,6 +83,8 @@ async def read_places(
     """
 
     places = crud.place.get_multi(db)
+    if not places:
+        raise HTTPException(status_code=404, detail="Places not found")
     return places
 
 
@@ -150,25 +138,36 @@ async def read_auto_completed_places(
     """
     retrieve some auto completed places
     """
-    places = map_services.auto_complete_place(db, current_user, address)
-    return places
+    try:
+        places = map_services.get_auto_completed_place(db, current_user, address)
+
+        return places
+    except Exception as error:
+        if isinstance(error, ZeroResultException):
+            error_msg = error.args[0]["detail"]
+            raise HTTPException(status_code=204, detail=error_msg)
+        else:
+            raise HTTPException(status_code=404, detail=f"An error occurred: {error}")
 
 
-@router.post(
-    "/{destination_id}/get-travel-info", response_model=List[Tuple[str, str, str]]
-)
+@router.post("/{destination_id}/get-travel-info", response_model=List[DistanceInfo])
 def get_distance_matrix(
     origins: List[str],
     destination_id: str,
-    mode: str = TravelMode.TRANSIT.value,
+    mode: TravelMode = TravelMode.TRANSIT,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(user_service.get_current_active_user),
 ) -> List[DistanceInfo]:
     try:
         distances = map_services.get_distance_matrix_for_places(
-            db, current_user, origins, destination_id, mode
+            db, current_user, origins, destination_id, mode, is_place_id=True
         )
+
         return distances
 
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as error:
+        if isinstance(error, ZeroResultException):
+            error_msg = error.args[0]["detail"]
+            raise HTTPException(status_code=204, detail=error_msg)
+        else:
+            raise HTTPException(status_code=404, detail=f"An error occurred: {error}")

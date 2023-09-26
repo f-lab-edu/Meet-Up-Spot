@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from app import crud, models, schemas
 from app.api import deps
 from app.core.config import get_app_settings
-from app.core.settings.app import AppSettings
 from app.services import user_service
 from app.utils import send_new_account_email
 
@@ -28,6 +27,8 @@ def read_users(
     Retrieve users.
     """
     users = crud.user.get_multi(db, skip=skip, limit=limit)
+    if not users:
+        raise HTTPException(status_code=404, detail="Users not found")
     return users
 
 
@@ -127,6 +128,9 @@ def read_user_by_id(
     Get a specific user by id.
     """
     user = crud.user.get(db, id=user_id)
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
     if user == current_user:
         return user
     if not crud.user.is_superuser(current_user):

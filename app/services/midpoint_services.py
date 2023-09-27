@@ -1,12 +1,13 @@
 import math
-from typing import Dict, List
+from collections import defaultdict, namedtuple
+from typing import List
 
-import haversine
-import requests
+from haversine import haversine
 
-from app.schemas.google_maps_api import GeocodeResponse
+from app.schemas.google_maps_api import DistanceInfo, GeocodeResponse
+from app.services.constants import AGGREGATED_ATTR
 
-from .map_services import MapServices
+DestinationSummary = namedtuple("DestinationSummary", ("destination_id, total_value"))
 
 
 def calculate_midpoint(locations: List[GeocodeResponse]) -> GeocodeResponse:
@@ -59,19 +60,42 @@ def calculate_midpoint_harvarsine(lat1, lon1, lat2, lon2) -> GeocodeResponse:
     return GeocodeResponse(latitude=mid_lat, longitude=mid_lon)
 
 
+def harversine_distance(coord1: GeocodeResponse, coord2: GeocodeResponse, unit="m"):
+    return haversine(
+        (coord1.latitude, coord1.longitude),
+        (coord2.latitude, coord2.longitude),
+        unit=unit,
+    )
+
+
+def sort_destinations_by_aggregated_attr(
+    distance_matrix: List[DistanceInfo], attribute: AGGREGATED_ATTR, count: int
+) -> List[DestinationSummary]:
+    def group_by_destination(distance_matrix: List[DistanceInfo]) -> dict:
+        destination_groups = defaultdict(list)
+        for matrix in distance_matrix:
+            destination_groups[matrix.destination_id].append(matrix)
+        return destination_groups
+
+    grouped_matrix = group_by_destination(distance_matrix)
+    results = sorted(
+        (
+            DestinationSummary(
+                destination, sum(getattr(info, attribute.value) for info in info_list)
+            )
+            for destination, info_list in grouped_matrix.items()
+        ),
+        key=lambda x: x.total_value,
+    )[:count]
+
+    return results
+
+
 def calculate_midpoint_from_addresses(
-    map_services: MapServices, db, user, addresses: List[str]
+    geocoded_addresses: List[GeocodeResponse],
 ) -> GeocodeResponse:
     """
     Geocode한 주소들의 중간 위치를 계산합니다.
     """
 
-    geocoded_locations: List[GeocodeResponse] = [
-        map_services.get_lat_lng_from_address(db, user, address)
-        for address in addresses
-    ]
-
-    if not geocoded_locations:
-        return None
-
-    return calculate_midpoint_arithmetic(geocoded_locations)
+    return calculate_midpoint_arithmetic(geocoded_addresses)

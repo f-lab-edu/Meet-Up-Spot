@@ -1,5 +1,4 @@
 import logging
-from collections import namedtuple
 from functools import wraps
 from typing import List
 
@@ -20,8 +19,10 @@ from app.schemas.location import Location, LocationCreate
 from app.schemas.place import AutoCompletedPlace, Place, PlaceCreate
 from app.services.constants import (
     GOOGLE_MAPS_URL,
+    PLACETYPE,
     MapsFunction,
-    PlaceType,
+    Radius,
+    RankBy,
     StatusDetail,
     TravelMode,
 )
@@ -120,15 +121,17 @@ class MapAdapter:
         user,
         latitude,
         longitude,
-        radius=1000,
+        radius=Radius.FIRST_RADIUS.value,
         language="ko",
-        place_type=PlaceType.SUBWAY_STATION.value,
+        place_type: PLACETYPE = PLACETYPE.TRANSIT_STATION,
+        rank_by: RankBy = RankBy.PROMINENCE,
     ) -> List[dict]:
         return self.client.places_nearby(
             location=(latitude, longitude),
-            radius=100,
+            radius=radius if rank_by == RankBy.PROMINENCE else None,
             language=language,
-            type=place_type,
+            type=place_type.value,
+            rank_by=rank_by.value,
         )
 
     @add_api_request_log
@@ -148,18 +151,20 @@ class MapAdapter:
     ) -> List[DistanceInfo]:
         origins = kwargs["origins"]
         destinations = kwargs["destinations"]
-        mode = kwargs["mode"]
+        mode: TravelMode = kwargs["mode"]
         language = kwargs["language"]
         is_place_id = kwargs["is_place_id"]
+
         matrix = self.client.distance_matrix(
             origins=origins,
             destinations=self.format_destinations(destinations)
             if is_place_id
             else destinations,
-            mode=mode,
+            mode=mode.value,
             language=language,
         )
 
+        print(len(destinations))
         distances = []
         for row_idx, row in enumerate(matrix["rows"]):
             for ele_idx, element in enumerate(row["elements"]):
@@ -168,6 +173,9 @@ class MapAdapter:
                         DistanceInfo(
                             origin=matrix["origin_addresses"][row_idx],
                             destination=matrix["destination_addresses"][ele_idx],
+                            destination_id=destinations[ele_idx]
+                            if is_place_id
+                            else None,
                             distance_text=None,
                             distance_value=None,
                             duration_text=None,
@@ -180,6 +188,7 @@ class MapAdapter:
                     DistanceInfo(
                         origin=matrix["origin_addresses"][row_idx],
                         destination=matrix["destination_addresses"][ele_idx],
+                        destination_id=destinations[ele_idx] if is_place_id else None,
                         distance_text=element["distance"]["text"],
                         distance_value=element["distance"]["value"],
                         duration_text=element["duration"]["text"],
@@ -245,6 +254,11 @@ class MapServices:
 
         return ReverseGeocodeResponse(address=result[0]["formatted_address"])
 
+    def get_geocoded_addresses(self, db, user, aaddresses):
+        return [
+            self.get_lat_lng_from_address(db, user, address) for address in aaddresses
+        ]
+
     def get_nearby_places(
         self,
         db: Session,
@@ -253,17 +267,23 @@ class MapServices:
         longitude: float,
         radius=1000,
         language="ko",
-        place_type=PlaceType.CAFE.value,
+        place_type=PLACETYPE.TRANSIT_STATION,
     ) -> List[Place]:
         """
         주변 지역 검색 API 요청
         """
         response = self.map_adapter.search_nearby_places(
-            db, user, latitude, longitude, radius=radius, language="ko"
+            db,
+            user,
+            latitude,
+            longitude,
+            radius=radius,
+            place_type=place_type,
+            language="ko",
         )
         results = response["results"]
-        print(results)
         places = []
+        print(results)
         for result in results[:20]:
             try:
                 # location = self.create_or_get_location(db, result)
@@ -310,8 +330,8 @@ class MapServices:
         user: User,
         origins: str | List[str],
         destinations: str | List[str],
-        mode: str,
-        is_place_id: bool = False,
+        mode: TravelMode = TravelMode.TRANSIT,
+        is_place_id: bool = True,
     ) -> List[DistanceInfo]:
         """
         origins: list of origins
@@ -328,13 +348,12 @@ class MapServices:
         params = DistanceMatrixRequest(
             origins=origins,
             destinations=destinations,
-            mode=TravelMode[mode.upper()].value
+            mode=TravelMode[mode.upper()]
             if mode.upper() in [keys for keys in TravelMode.__members__]
-            else TravelMode.TRANSIT.value,
+            else TravelMode.TRANSIT,
             language="ko",
-            is_place=is_place_id,
+            is_place_id=is_place_id,
         )
-
         distances: DistanceInfo = self.map_adapter.calculate_distance_matrix(
             db, user, **params.model_dump()
         )

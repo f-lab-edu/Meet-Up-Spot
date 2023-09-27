@@ -1,9 +1,11 @@
 name: CI Workflow with Codecov
 
 on:
-  push:
-    branches:
-      - 'feature/*'
+  pull_request:
+    types:
+      - synchronize
+      - opened
+      - reopened
 
 jobs:
   build:

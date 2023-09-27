@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from app.schemas.place import Place
 from app.services.constants import (
+    PLACETYPE,
     TrafficModel,
     TransitMode,
     TransitRoutingPreference,
@@ -37,7 +38,7 @@ class RequestSpotResponse(BaseModel):
 class DistanceMatrixRequest(BaseModel):
     origins: Union[str, List[str]]
     destinations: Union[str, List[str]]
-    mode: Optional[str] = TravelMode.TRANSIT.value
+    mode: Optional[TravelMode] = TravelMode.TRANSIT
     region: Optional[str] = None
     language: Optional[str] = "ko"
     avoid: Optional[List[str]] = None
@@ -52,6 +53,20 @@ class DistanceMatrixRequest(BaseModel):
         str
     ] = TransitRoutingPreference.FEWER_TRANSFERS.value
     units: Optional[str] = None
+    is_place_id: Optional[bool] = False
 
 
-DistanceInfo = namedtuple("DistanceInfo", ["address", "distance", "duration"])
+# duration_value는 초단위, distance_value는 미터단위
+class DistanceInfo(BaseModel):
+    origin: str
+    destination: str
+    destination_id: Optional[str]
+    distance_text: Optional[str]
+    distance_value: Optional[int]
+    duration_text: Optional[str]
+    duration_value: Optional[int]
+
+
+class UserPreferences:
+    place_type: PLACETYPE
+    return_count: int

@@ -8,11 +8,11 @@ from app import crud, models
 from app.api.deps import get_db
 from app.core import settings
 from app.core.config import get_app_settings
-from app.schemas.google_maps_api import DistanceInfo
+from app.schemas.google_maps_api import DistanceInfo, UserPreferences
 from app.schemas.msg import Msg
 from app.schemas.place import AutoCompletedPlace, Place
 from app.services import user_service
-from app.services.constants import PlaceType, TravelMode
+from app.services.constants import PLACETYPE, TravelMode
 from app.services.map_services import MapServices, ZeroResultException
 from app.services.recommend_services import Recommender
 
@@ -29,7 +29,8 @@ map_services = MapServices(
 @router.post("/request-places/", response_model=List[Place])
 def request_places(
     addresses: List[str],
-    place_type: PlaceType = PlaceType.CAFE.value,
+    place_type: PLACETYPE = PLACETYPE.CAFE,
+    max_results: int = 5,
     current_user: models.User = Depends(user_service.get_current_active_superuser),
     db: Session = Depends(get_db),
 ):
@@ -37,13 +38,19 @@ def request_places(
     request meeting places
     """
     try:
-        recommend_services = Recommender(db, current_user, map_services)
+        recommend_services = Recommender(
+            db,
+            current_user,
+            map_services,
+            UserPreferences(place_type=place_type, return_count=max_results),
+        )
         complete_addresses = map_services.get_complete_addresses(
             db, current_user, addresses
         )
 
         results: List[Place] = recommend_services.recommend_places(
-            db, complete_addresses, place_type
+            db,
+            complete_addresses,
         )
 
         return results

@@ -1,3 +1,4 @@
+from http import HTTPStatus
 from typing import List
 
 import googlemaps
@@ -57,7 +58,7 @@ def request_places(
     except Exception as error:
         if isinstance(error, ZeroResultException):
             error_msg = error.args[0]["detail"]
-            raise HTTPException(status_code=204, detail=error_msg)
+            raise HTTPException(status_code=HTTPStatus.NO_CONTENT, detail=error_msg)
         else:
             raise HTTPException(status_code=404, detail=f"An error occurred: {error}")
 
@@ -74,7 +75,7 @@ async def read_place_by_id(
     place = crud.place.get_by_place_id(db, id=place_id)
 
     if not place:
-        raise HTTPException(status_code=404, detail="Place not found")
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Place not found")
 
     return place
 
@@ -91,7 +92,7 @@ async def read_places(
 
     places = crud.place.get_multi(db)
     if not places:
-        raise HTTPException(status_code=404, detail="Places not found")
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Places not found")
     return places
 
 
@@ -107,9 +108,11 @@ async def mark_interest(
     """
     place = crud.place.get_by_place_id(db, id=place_id)
     if not place:
-        raise HTTPException(status_code=404, detail="Place not found")
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Place not found")
     if crud.user.has_interest(db, current_user, place):
-        raise HTTPException(status_code=400, detail="Already marked place")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST, detail="Already marked place"
+        )
 
     crud.user.mark_interest(db, current_user, place)
     return {"msg": "Place successfully marked"}
@@ -128,9 +131,11 @@ async def unmark_interest(
     place = crud.place.get_by_place_id(db, id=place_id)
 
     if not place:
-        raise HTTPException(status_code=404, detail="Place not found")
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Place not found")
     if not crud.user.has_interest(db, current_user, place):
-        raise HTTPException(status_code=400, detail="Not marked place")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST, detail="Not marked place"
+        )
 
     crud.user.unmark_interest(db, current_user, place)
     return {"msg": "Place successfully unmarked"}
@@ -152,9 +157,11 @@ async def read_auto_completed_places(
     except Exception as error:
         if isinstance(error, ZeroResultException):
             error_msg = error.args[0]["detail"]
-            raise HTTPException(status_code=204, detail=error_msg)
+            raise HTTPException(status_code=HTTPStatus.NO_CONTENT, detail=error_msg)
         else:
-            raise HTTPException(status_code=404, detail=f"An error occurred: {error}")
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND, detail=f"An error occurred: {error}"
+            )
 
 
 @router.post("/{destination_id}/get-travel-info", response_model=List[DistanceInfo])
@@ -175,6 +182,8 @@ def get_distance_matrix(
     except Exception as error:
         if isinstance(error, ZeroResultException):
             error_msg = error.args[0]["detail"]
-            raise HTTPException(status_code=204, detail=error_msg)
+            raise HTTPException(status_code=HTTPStatus.NO_CONTENT, detail=error_msg)
         else:
-            raise HTTPException(status_code=404, detail=f"An error occurred: {error}")
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND, detail=f"An error occurred: {error}"
+            )

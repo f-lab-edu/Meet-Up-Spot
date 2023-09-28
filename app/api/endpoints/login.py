@@ -1,4 +1,5 @@
 from datetime import timedelta
+from http import HTTPStatus
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends, HTTPException
@@ -34,9 +35,11 @@ def login_access_token(
         db, email=form_data.username, password=form_data.password
     )
     if not user:
-        raise HTTPException(status_code=400, detail="Incorrect email or password")
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST, detail="Incorrect email or password"
+        )
     elif not crud.user.is_active(user):
-        raise HTTPException(status_code=400, detail="Inactive user")
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail="Inactive user")
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     return schemas.Token(
         access_token=security.create_access_token(
@@ -65,7 +68,7 @@ def recover_password(email: str, db: Session = Depends(deps.get_db)) -> Any:
 
     if not user:
         raise HTTPException(
-            status_code=404,
+            status_code=HTTPStatus.NOT_FOUND,
             detail="The user with this username does not exist in the system.",
         )
     password_reset_token = generate_password_reset_token(email=email)
@@ -86,15 +89,15 @@ def reset_password(
     """
     email = parsed_email_password_reset_token(token)
     if not email:
-        raise HTTPException(status_code=400, detail="Invalid token")
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail="Invalid token")
     user = crud.user.get_by_email(db, email=email)
     if not user:
         raise HTTPException(
-            status_code=404,
+            status_code=HTTPStatus.NOT_FOUND,
             detail="The user with this username does not exist in the system.",
         )
     elif not crud.user.is_active(user):
-        raise HTTPException(status_code=400, detail="Inactive user")
+        raise HTTPException(status_code=HTTPStatus.BAD_REQUEST, detail="Inactive user")
     hashed_password = get_password_hash(new_password)
     user.hashed_password = hashed_password
     db.add(user)

@@ -1,4 +1,5 @@
 import logging
+from dataclasses import asdict
 from functools import wraps
 from typing import List
 
@@ -355,7 +356,7 @@ class MapServices:
             is_place_id=is_place_id,
         )
         distances: DistanceInfo = self.map_adapter.calculate_distance_matrix(
-            db, user, **params.model_dump()
+            db, user, **asdict(params)
         )
 
         return distances

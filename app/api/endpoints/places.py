@@ -32,7 +32,7 @@ def request_places(
     addresses: List[str],
     place_type: PLACETYPE = PLACETYPE.CAFE,
     max_results: int = 5,
-    current_user: models.User = Depends(user_service.get_current_active_superuser),
+    current_user: models.User = Depends(user_service.get_current_active_user),
     db: Session = Depends(get_db),
 ):
     """

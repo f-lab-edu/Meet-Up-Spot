@@ -1,21 +1,16 @@
+import os
 from functools import lru_cache
+from importlib import import_module
 from typing import Dict, Type
 
 from app.core.settings.app import AppSettings
 from app.core.settings.base import AppEnvTypes
-from app.core.settings.development import settings as DevAppSettings
-from app.core.settings.production import settings as ProdAppSettings
-from app.core.settings.test import settings as TestAppSettingss
 
-environments: Dict[AppEnvTypes, Type[AppSettings]] = {
-    AppEnvTypes.dev: DevAppSettings,
-    AppEnvTypes.prod: ProdAppSettings,
-    AppEnvTypes.test: TestAppSettingss,
-}
+APP_ENV: str = os.environ.get("APP_ENV", AppEnvTypes.prod.value)
+settings_module = import_module(f"app.core.settings.{APP_ENV}")
 
 
 @lru_cache
 def get_app_settings() -> AppSettings:
-    app_env: AppSettings = AppSettings().APP_ENV
-    config = environments[app_env]
+    config = settings_module.settings
     return config

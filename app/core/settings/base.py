@@ -3,9 +3,9 @@ from enum import Enum
 from pydantic_settings import BaseSettings
 
 
-class AppEnvTypes(Enum):
-    prod: str = "prod"
-    dev: str = "dev"
+class AppEnvTypes(str, Enum):
+    prod: str = "production"
+    dev: str = "development"
     test: str = "test"
 
 

@@ -26,7 +26,7 @@ global_db = TestingSessionLocal()
 
 
 # pylint: disable=no-member
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def db() -> Generator:
     db = SessionLocal()
     yield db
@@ -52,19 +52,19 @@ def client() -> Generator:
         yield c
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def settings() -> Generator:
     yield get_app_settings()
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def superuser_token_headers(
     client: TestClient, settings: AppSettings
 ) -> Dict[str, str]:
     return get_superuser_token_headers(client, settings)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def normal_user_token_headers(
     client: TestClient, db: Session, settings: AppSettings
 ) -> Dict[str, str]:

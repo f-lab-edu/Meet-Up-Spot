@@ -1,11 +1,14 @@
 from unittest.mock import MagicMock
 
 import pytest
+from fastapi.encoders import jsonable_encoder
 
 from app import crud
 from app.schemas.google_maps_api import DistanceInfo
+from app.services.constants import StatusDetail, TravelMode
 from app.services.map_services import CustomException, MapServices, ZeroResultException
 from app.tests.utils.places import (
+    distance_info_list_no_id,
     mock_geocode_response,
     mock_location,
     mock_place_api_response,
@@ -17,9 +20,7 @@ from app.tests.utils.places import (
 def test_create_or_get_place_existing(map_service: MapServices, db):
     db.query().filter().first.return_value = mock_place_obj
 
-    result = map_service.create_or_get_place(
-        db, mock_place_api_response, mock_location.id
-    )
+    result = map_service.create_or_get_place(db, mock_place_api_response)
     db.query().filter().first.assert_called_once()
     assert result == mock_place_obj
 
@@ -29,9 +30,7 @@ def test_create_or_get_place_new(map_service: MapServices, db):
     db.query().filter().first.return_value = None
     crud.place.create = MagicMock(return_value=mock_place_obj)
 
-    result = map_service.create_or_get_place(
-        db, mock_place_api_response, mock_location.id
-    )
+    result = map_service.create_or_get_place(db, mock_place_api_response)
 
     assert result == mock_place_obj
     db.query().filter().first.assert_called_once()
@@ -43,8 +42,7 @@ def test_get_lat_lng_from_address(map_service: MapServices, db, normal_user):
         return_value=mock_geocode_response
     )
 
-    response = map_service.get_lat_lng_from_address(db, normal_user, "Test Address")
-
+    response = map_service.get_lat_lng_from_address(db, normal_user, "판교역")
     assert response.latitude == 123.456
     assert response.longitude == 789.101
 
@@ -52,8 +50,8 @@ def test_get_lat_lng_from_address(map_service: MapServices, db, normal_user):
 def test_get_lat_lng_from_address_no_result(map_service: MapServices, db, normal_user):
     map_service.map_adapter.client.geocode = MagicMock(return_value=[])
 
-    with pytest.raises(CustomException):
-        map_service.get_lat_lng_from_address(db, normal_user, "Invalid Address")
+    with pytest.raises(ZeroResultException):
+        map_service.get_lat_lng_from_address(db, normal_user, "test")
 
 
 @pytest.mark.parametrize("db", [MagicMock()])
@@ -80,6 +78,7 @@ def test_get_distance_matrix_for_places_one_destination(map_service, db, normal_
     distance_info_1 = (
         DistanceInfo(
             origin="origin_1",
+            destination_id="1",
             destination="destination_1",
             distance_text="10km",
             distance_value=10000,
@@ -90,6 +89,7 @@ def test_get_distance_matrix_for_places_one_destination(map_service, db, normal_
     distance_info_2 = (
         DistanceInfo(
             origin="origin_2",
+            destination_id="1",
             destination="destination_1",
             distance_text="15km",
             distance_value=15000,
@@ -159,41 +159,9 @@ def test_calculate_distance_matrix(db, normal_user, map_service):
             "대한민국 경기도 성남시 분당구 삼평동 판교역로 160 판교역",
             "대한민국 서울특별시 중구 소공동 세종대로18길 2 서울역",
         ],
-        mode="transit",
+        mode=TravelMode.TRANSIT,
         language="ko",
+        is_place_id=False,
     )
 
-    assert response == [
-        DistanceInfo(
-            origin="대한민국 경기도 성남시 분당구 성남대로 지하 601 서현",
-            destination="대한민국 경기도 성남시 분당구 삼평동 판교역로 160 판교역",
-            distance_text="2.2 km",
-            distance_value=2186,
-            duration_text="22분",
-            duration_value=1299,
-        ),
-        DistanceInfo(
-            origin="대한민국 경기도 성남시 분당구 성남대로 지하 601 서현",
-            destination="대한민국 서울특별시 중구 소공동 세종대로18길 2 서울역",
-            distance_text="29.4 km",
-            distance_value=29450,
-            duration_text="53분",
-            duration_value=3168,
-        ),
-        DistanceInfo(
-            origin="대한민국 서울특별시 양재역",
-            destination="대한민국 경기도 성남시 분당구 삼평동 판교역로 160 판교역",
-            distance_text="12.9 km",
-            distance_value=12881,
-            duration_text="13분",
-            duration_value=805,
-        ),
-        DistanceInfo(
-            origin="대한민국 서울특별시 양재역",
-            destination="대한민국 서울특별시 중구 소공동 세종대로18길 2 서울역",
-            distance_text="15.5 km",
-            distance_value=15475,
-            duration_text="34분",
-            duration_value=2065,
-        ),
-    ]
+    assert response == distance_info_list_no_id

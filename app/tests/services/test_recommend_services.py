@@ -1,6 +1,6 @@
 # mock 필요한 부분, 예를 들면 MapServices를 mock 하려면
 from typing import List
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 from sqlalchemy.orm import Session
 
@@ -8,11 +8,7 @@ from app.models.place import Place
 from app.schemas.google_maps_api import DistanceInfo, GeocodeResponse
 from app.services.constants import PLACETYPE
 from app.services.recommend_services import Recommender
-from app.tests.utils.places import (
-    distance_info_list,
-    mock_place_type_obj,
-    user_preferences,
-)
+from app.tests.utils.places import mock_place_type_obj, user_preferences
 
 
 def test_candidate_fetcher_fetch_by_address(
@@ -25,9 +21,9 @@ def test_candidate_fetcher_fetch_by_address(
     map_service.get_lat_lng_from_address.return_value = GeocodeResponse(
         latitude=37.0, longitude=127.0
     )
-    map_service.search_nearby_places.return_value = []
+    map_service.get_nearby_places.return_value = []
 
-    recommender = Recommender(db, map_service, normal_user, user_preferences)
+    recommender = Recommender(db, normal_user, map_service, user_preferences)
     results = recommender.candidate_fetcher.fetch_by_address("판교역", PLACETYPE.CAFE)
 
     assert results == []
@@ -35,12 +31,14 @@ def test_candidate_fetcher_fetch_by_address(
 
 def test_candidate_fetcher_fetch_by_midpoint(db: Session, map_service, normal_user):
     map_service = MagicMock()
-    map_service.get_lat_lng_from_address.return_value = GeocodeResponse(
-        latitude=37.0, longitude=127.0
-    )
-    map_service.search_nearby_places.return_value = []
+    map_service.get_geocoded_addresses.return_value = [
+        GeocodeResponse(latitude=37.0, longitude=127.0),
+        GeocodeResponse(latitude=38.0, longitude=128.0),
+    ]
 
-    recommender = Recommender(db, map_service, normal_user, user_preferences)
+    map_service.get_nearby_places.return_value = []
+
+    recommender = Recommender(db, normal_user, map_service, user_preferences)
     results = recommender.candidate_fetcher.fetch_by_midpoint(
         ["판교역", "양재역"], PLACETYPE.CAFE
     )
@@ -159,11 +157,11 @@ def test_filter_candidates_by_distance_and_duration(
     result: List[Place] = recommender.filter_candidates_by_distance_and_duration(
         distance_matrix, candidates
     )
-    # print(result)
-    # Assert
-    assert len(result) == 2
-    assert result[0].place_id == "1"
-    assert result[1].place_id == "2"
+
+    assert len(result) is 2
+    assert any(place.place_id == "1" for place in result)
+    assert any(place.place_id == "2" for place in result)
+    assert not any(place.place_id == "3" for place in result)
 
 
 def test_rank_candidates_different_destination_id_place_id(

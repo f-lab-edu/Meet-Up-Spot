@@ -184,6 +184,44 @@ distance_info_list = [
         duration_value=2065,
     ),
 ]
+distance_info_list_no_id = [
+    DistanceInfo(
+        origin="대한민국 경기도 성남시 분당구 성남대로 지하 601 서현",
+        destination_id=None,
+        destination="대한민국 경기도 성남시 분당구 삼평동 판교역로 160 판교역",
+        distance_text="2.2 km",
+        distance_value=2186,
+        duration_text="22분",
+        duration_value=1299,
+    ),
+    DistanceInfo(
+        origin="대한민국 경기도 성남시 분당구 성남대로 지하 601 서현",
+        destination_id=None,
+        destination="대한민국 서울특별시 중구 소공동 세종대로18길 2 서울역",
+        distance_text="29.4 km",
+        distance_value=29450,
+        duration_text="53분",
+        duration_value=3168,
+    ),
+    DistanceInfo(
+        origin="대한민국 서울특별시 양재역",
+        destination_id=None,
+        destination="대한민국 경기도 성남시 분당구 삼평동 판교역로 160 판교역",
+        distance_text="12.9 km",
+        distance_value=12881,
+        duration_text="13분",
+        duration_value=805,
+    ),
+    DistanceInfo(
+        origin="대한민국 서울특별시 양재역",
+        destination_id=None,
+        destination="대한민국 서울특별시 중구 소공동 세종대로18길 2 서울역",
+        distance_text="15.5 km",
+        distance_value=15475,
+        duration_text="34분",
+        duration_value=2065,
+    ),
+]
 
 places_list_related_to_distance_info = [
     Place(

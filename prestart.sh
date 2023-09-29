@@ -1,4 +1,4 @@
-alembic upgrade head
+pipenv run alembic upgrade head
 
 # Create initial data in DB
-python /app/app/initial_data.py
+pipenv run python app/initial_data.py

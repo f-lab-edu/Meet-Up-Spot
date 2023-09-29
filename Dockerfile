@@ -5,14 +5,17 @@ FROM python:3.11
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
-WORKDIR /app/
+WORKDIR /Meet-Up-Spot
 
 # Install dependencies
 RUN pip install pipenv
-COPY Pipfile Pipfile.lock /app/
+COPY Pipfile Pipfile.lock /Meet-Up-Spot/
 RUN pipenv install --system --dev
 
-COPY ./app /app/
+COPY ./main.py .
+COPY ./alembic /Meet-Up-Spot/alembic
+COPY ./alembic.ini .
+COPY ./app ./app
 
 EXPOSE 8000
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/Meet-Up-Spot

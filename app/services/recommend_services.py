@@ -95,6 +95,26 @@ class Recommender:
         self.candidate_fetcher = CandidateFetcher(db, user, map_services)
         self.user_preferences: UserPreferences = user_preferences
 
+    def update_candidate_addresses(
+        self, distance_matrix: List[DistanceInfo], candidates: List[Place]
+    ):
+        """
+        Update the address of the candidate.
+
+        :param db: Database session
+        :param distance_matrix: The distance matrix results.
+        :param candidates: The list of candidates to update.
+        """
+        candidates_dict = {candidate.place_id: candidate for candidate in candidates}
+        for matrix in distance_matrix:
+            candidate = candidates_dict.get(matrix.destination_id)
+            if candidate and matrix.destination != candidate.address:
+                logger.info(
+                    f"Updating address: {matrix.destination} != {candidate.address}"
+                )
+                updated_data = {"address": matrix.destination}
+                crud.place.update(self.db, db_obj=candidate, obj_in=updated_data)
+
     def recommend_places(
         self,
         db: Session,
@@ -135,18 +155,15 @@ class Recommender:
             self.user_preferences.return_count,
         )
 
-        # 후보들 중에서 최소 거리를 갖는 후보들만 필터링
+        aggregated_destination_ids = {
+            result.destination_id
+            for result in min_distance_candidates + min_duration_candidates
+        }
+
         filtered_candidates = [
             candidate
             for candidate in candidates
-            if any(
-                candidate.place_id == result.destination_id
-                for result in min_distance_candidates
-            )
-            or any(
-                candidate.place_id == result.destination_id
-                for result in min_duration_candidates
-            )
+            if candidate.place_id in aggregated_destination_ids
         ]
 
         # 경로 거리,시간 필터링에서 같은 결과 나올수 있어서 중복 제거
@@ -158,29 +175,6 @@ class Recommender:
         candidates: List[Place],
         addresses: List[str],
     ) -> List[Place]:
-        # NOTE: 약간 어색하지만 중간에 candidate랑 get_distance_matrix_for_places애서 찾아온 주소가 일관성이 없어서 여기서 수정해줌
-        def update_candidate_addresses(
-            db, distance_matrix: List[DistanceInfo], candidates: List[Place]
-        ):
-            """
-            Update the address of the candidate.
-
-            :param db: Database session
-            :param distance_matrix: The distance matrix results.
-            :param candidates: The list of candidates to update.
-            """
-            candidates_dict = {
-                candidate.place_id: candidate for candidate in candidates
-            }
-            for matrix in distance_matrix:
-                candidate = candidates_dict.get(matrix.destination_id)
-                if candidate and matrix.destination != candidate.address:
-                    logger.info(
-                        f"Updating address: {matrix.destination} != {candidate.address}"
-                    )
-                    updated_data = {"address": matrix.destination}
-                    crud.place.update(db, db_obj=candidate, obj_in=updated_data)
-
         distance_matrix: DistanceInfo = (
             self.map_services.get_distance_matrix_for_places(
                 self.db,
@@ -190,7 +184,8 @@ class Recommender:
             )
         )
 
-        update_candidate_addresses(self.db, distance_matrix, candidates)
+        # NOTE: 약간 어색하지만 중간에 candidate랑 get_distance_matrix_for_places애서 찾아온 주소가 일관성이 없어서 여기서 수정해줌
+        self.update_candidate_addresses(distance_matrix, candidates)
 
         filtered_cadidates = self.filter_candidates_by_distance_and_duration(
             distance_matrix, candidates

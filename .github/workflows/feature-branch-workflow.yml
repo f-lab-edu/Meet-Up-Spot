@@ -31,14 +31,13 @@ jobs:
       - name: Set PYTHONPATH
         run: echo "PYTHONPATH=$(pwd)" >> $GITHUB_ENV
 
-      - name: Install MJML
-        run: |
-          npm install -g mjml
       - name: Install pipenv
         run: pip install pipenv
 
       - name: Install project dependencies
-        run: pipenv install --dev --deploy --ignore-pipfile
+        run: |
+          pipenv install --dev --deploy --ignore-pipfile
+          npm install -g mjml
 
       - name: Display installed packages
         run: |
@@ -55,8 +54,9 @@ jobs:
         run: |
           sudo docker logs meet-up-spot_db_1
 
-      - name: Build MJML files
+      - name: Create directory and Build MJML files
         run: |
+          mkdir -p app/email-templates/build/
           for file in app/email-templates/src/*.mjml
           do
             name=$(basename $file .mjml)

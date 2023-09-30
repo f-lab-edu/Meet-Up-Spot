@@ -17,11 +17,8 @@ class Place(Base):
     address = Column(String(255), nullable=False)
     rating = Column(Float, default=0.0)
     user_ratings_total = Column(Integer, default=0)
-
-    location_id = Column(Integer, ForeignKey("location.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("user.id"))
 
-    location = relationship("Location", back_populates="places")
     users = relationship(
         "User",
         secondary=user_interested_place_association,

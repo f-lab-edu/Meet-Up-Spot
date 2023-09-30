@@ -1,6 +1,5 @@
 import logging
-
-from pydantic import PostgresDsn, SecretStr
+import secrets
 
 from app.core.settings.app import AppSettings
 
@@ -10,9 +9,8 @@ class TestAppSettings(AppSettings):
 
     title: str = "Test FastAPI example application"
 
-    SECRET_KEY: SecretStr = SecretStr("test_secret")
+    SECRET_KEY: str = secrets.token_urlsafe(32)
 
-    DATABASE_URL: PostgresDsn
     max_connection_count: int = 5
     min_connection_count: int = 5
 

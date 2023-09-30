@@ -25,6 +25,7 @@ tenacity = "*"
 httpx = "*"
 python-multipart = "*"
 googlemaps = "*"
+bcrypt = "*"
 
 [dev-packages]
 pytest-cov = "*"

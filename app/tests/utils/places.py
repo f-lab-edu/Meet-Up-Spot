@@ -5,9 +5,10 @@ from sqlalchemy.orm import Session
 
 from app import crud
 from app.models.place import PlaceType
-from app.schemas.google_maps_api import GeocodeResponse
+from app.schemas.google_maps_api import DistanceInfo, GeocodeResponse, UserPreferences
 from app.schemas.location import Location, LocationCreate
 from app.schemas.place import AutoCompletedPlace, Place, PlaceCreate
+from app.services.constants import PLACETYPE
 from app.tests.utils.utils import random_lower_string
 
 mock_place_obj = Place(
@@ -143,3 +144,102 @@ def create_location_place(db):
     place = crud.place.create(db, obj_in=place_create)
 
     return location, place
+
+
+distance_info_list = [
+    DistanceInfo(
+        origin="대한민국 경기도 성남시 분당구 성남대로 지하 601 서현",
+        destination_id="ChIJN1t_tDeuEmsRUsoyG83frY1",
+        destination="대한민국 경기도 성남시 분당구 삼평동 판교역로 160 판교역",
+        distance_text="2.2 km",
+        distance_value=2186,
+        duration_text="22분",
+        duration_value=1299,
+    ),
+    DistanceInfo(
+        origin="대한민국 경기도 성남시 분당구 성남대로 지하 601 서현",
+        destination_id="ChIJN1t_tDeuEmsRUsoyG83frY2",
+        destination="대한민국 서울특별시 중구 소공동 세종대로18길 2 서울역",
+        distance_text="29.4 km",
+        distance_value=29450,
+        duration_text="53분",
+        duration_value=3168,
+    ),
+    DistanceInfo(
+        origin="대한민국 서울특별시 양재역",
+        destination_id="ChIJN1t_tDeuEmsRUsoyG83frY1",
+        destination="대한민국 경기도 성남시 분당구 삼평동 판교역로 160 판교역",
+        distance_text="12.9 km",
+        distance_value=12881,
+        duration_text="13분",
+        duration_value=805,
+    ),
+    DistanceInfo(
+        origin="대한민국 서울특별시 양재역",
+        destination_id="ChIJN1t_tDeuEmsRUsoyG83frY2",
+        destination="대한민국 서울특별시 중구 소공동 세종대로18길 2 서울역",
+        distance_text="15.5 km",
+        distance_value=15475,
+        duration_text="34분",
+        duration_value=2065,
+    ),
+]
+distance_info_list_no_id = [
+    DistanceInfo(
+        origin="대한민국 경기도 성남시 분당구 성남대로 지하 601 서현",
+        destination_id=None,
+        destination="대한민국 경기도 성남시 분당구 삼평동 판교역로 160 판교역",
+        distance_text="2.2 km",
+        distance_value=2186,
+        duration_text="22분",
+        duration_value=1299,
+    ),
+    DistanceInfo(
+        origin="대한민국 경기도 성남시 분당구 성남대로 지하 601 서현",
+        destination_id=None,
+        destination="대한민국 서울특별시 중구 소공동 세종대로18길 2 서울역",
+        distance_text="29.4 km",
+        distance_value=29450,
+        duration_text="53분",
+        duration_value=3168,
+    ),
+    DistanceInfo(
+        origin="대한민국 서울특별시 양재역",
+        destination_id=None,
+        destination="대한민국 경기도 성남시 분당구 삼평동 판교역로 160 판교역",
+        distance_text="12.9 km",
+        distance_value=12881,
+        duration_text="13분",
+        duration_value=805,
+    ),
+    DistanceInfo(
+        origin="대한민국 서울특별시 양재역",
+        destination_id=None,
+        destination="대한민국 서울특별시 중구 소공동 세종대로18길 2 서울역",
+        distance_text="15.5 km",
+        distance_value=15475,
+        duration_text="34분",
+        duration_value=2065,
+    ),
+]
+
+places_list_related_to_distance_info = [
+    Place(
+        place_id="ChIJN1t_tDeuEmsRUsoyG83frY1",
+        name="판교역",
+        address="대한민국 경기도 성남시 분당구 삼평동 판교역로 160",
+        user_ratings_total=100,
+        rating=4.5,
+        place_types=[{"id": 1, "type_name": "cafe"}],
+    ),
+    Place(
+        place_id="ChIJN1t_tDeuEmsRUsoyG83frY2",
+        name="서울역",
+        address="대한민국 서울특별시 중구 소공동 세종대로18길 2",
+        user_ratings_total=100,
+        rating=4.5,
+        place_types=[{"id": 1, "type_name": "cafe"}],
+    ),
+]
+
+user_preferences = UserPreferences(place_type=PLACETYPE.CAFE, return_count=2)

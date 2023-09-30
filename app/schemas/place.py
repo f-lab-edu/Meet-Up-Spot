@@ -8,7 +8,6 @@ class PlaceBase(BaseModel):
     place_id: str
     name: str | None = None
     address: str
-    location_id: int | None = None
     user_ratings_total: int | None = None
     rating: float | None = None
 

@@ -5,13 +5,13 @@ from typing import Any, Dict, List, Optional, Union
 
 from dotenv import load_dotenv
 from pydantic import AnyHttpUrl, EmailStr, HttpUrl, PostgresDsn, field_validator
-from pydantic_core.core_schema import FieldValidationInfo
+from pydantic_core.core_schema import ValidationInfo
 
 from app.core.settings.base import AppEnvTypes, BaseAppSettings
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../..")
 
-load_dotenv(os.path.join(BASE_DIR, ".env"))
+ret = load_dotenv(os.path.join(BASE_DIR, ".env"))
 sys.path.append(BASE_DIR)
 
 
@@ -25,11 +25,13 @@ class AppSettings(BaseAppSettings):
     # BACKEND_CORS_ORIGINS is a JSON-formatted list of origins
     # e.g: '["http://localhost", "http://localhost:4200", "http://localhost:3000", \
     # "http://localhost:8080", "http://local.dockertoolbox.tiangolo.com"]'
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = os.environ["BACKEND_CORS_ORIGINS"].split(
-        ","
-    )
+    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = [
+        "http://localhost",
+        "http://localhost:8000",
+        "http://localhost:3000",
+    ]
 
-    APP_ENV: AppEnvTypes = os.environ["APP_ENV"]
+    APP_ENV: str = AppEnvTypes.test
 
     @classmethod
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
@@ -50,18 +52,16 @@ class AppSettings(BaseAppSettings):
     #         return None
     #     return v
 
-    POSTGRES_SERVER: str = os.environ["POSTGRES_HOST"]
-    POSTGRES_USER: str = os.environ["POSTGRES_USER"]
-    POSTGRES_PASSWORD: str = os.environ["POSTGRES_PASSWORD"]
-    POSTGRES_HOST: str = os.environ["POSTGRES_HOST"]
-    POSTGRES_DB: str = os.environ["POSTGRES_DB"]
-    DATABASE_URL: str = os.environ["DATABASE_URL"]
+    POSTGRES_USER: str = "postgres"
+    POSTGRES_PASSWORD: str = "DO_NOT_USE_THIS_PASSWORD_IN_PRODUCTION"
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_DB: str = "test_db"
+
+    DATABASE_URL: str = "postgresql+psycopg2://postgres:DO_NOT_USE_THIS_PASSWORD_IN_PRODUCTION@localhost:5432/test_db"
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
-    def assemble_db_connection(
-        cls, v: Optional[str], values: FieldValidationInfo
-    ) -> Any:
+    def assemble_db_connection(cls, v: Optional[str], values: ValidationInfo) -> Any:
         if isinstance(v, str):
             return v
         # pylint: disable=no-member
@@ -69,27 +69,27 @@ class AppSettings(BaseAppSettings):
             scheme="postgresql+psycopg2",
             user=values.data.get("POSTGRES_USER"),
             password=values.data.get("POSTGRES_PASSWORD"),
-            host=values.data.get("POSTGRES_SERVER"),
+            host=values.data.get("POSTGRES_HOST"),
             path=f"/{values.get('POSTGRES_DB') or ''}",
         )
 
     SMTP_TLS: bool = True
-    SMTP_PORT: Optional[int] = os.environ["SMTP_PORT"]
-    SMTP_HOST: Optional[str] = os.environ["SMTP_HOST"]
+    SMTP_PORT: Optional[int] = 587
+    SMTP_HOST: Optional[str] = "smtp.gmail.com"
     SMTP_USER: Optional[str] = os.environ["SMTP_USER"]
     SMTP_PASSWORD: Optional[str] = os.environ["SMTP_PASSWORD"]
-    EMAILS_FROM_EMAIL: Optional[EmailStr] = os.environ["EMAILS_FROM_EMAIL"]
-    EMAILS_FROM_NAME: Optional[str] = os.environ["EMAILS_FROM_NAME"]
+    EMAILS_FROM_EMAIL: Optional[EmailStr] = "info@Meet-up-spot.com"
+    EMAILS_FROM_NAME: Optional[str] = "Meet-up-spot"
 
     @field_validator("EMAILS_FROM_NAME", mode="before")
     @classmethod
-    def get_project_name(cls, v: Optional[str], values: FieldValidationInfo) -> str:
+    def get_project_name(cls, v: Optional[str], values: ValidationInfo) -> str:
         if not v:
             return values.data.get("PROJECT_NAME")
         return v
 
     EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 48
-    EMAIL_TEMPLATES_DIR: str = "/app/app/email-templates/build"
+    EMAIL_TEMPLATES_DIR: str = f"{os.getcwd()}/app/email-templates/build"
     EMAILS_ENABLED: bool = False
 
     @field_validator(
@@ -97,22 +97,22 @@ class AppSettings(BaseAppSettings):
         mode="before",
     )
     @classmethod
-    def get_emails_enabled(cls, v: bool, values: FieldValidationInfo) -> bool:
+    def get_emails_enabled(cls, v: bool, values: ValidationInfo) -> bool:
         return bool(
             values.data.get("SMTP_HOST")
             and values.data.get("SMTP_PORT")
             and values.data.get("EMAILS_FROM_EMAIL")
         )
 
-    EMAIL_TEST_USER: EmailStr = os.environ["EMAIL_TEST_USER"]
-    EMAIL_TEST_USER_PASSWORD: str = os.environ["EMAIL_TEST_USER_PASSWORD"]
+    EMAIL_TEST_USER: EmailStr = "test@example.com"
+    EMAIL_TEST_USER_PASSWORD: str = "test"
 
-    FIRST_SUPERUSER: EmailStr = os.environ["FIRST_SUPERUSER"]
-    FIRST_SUPERUSER_PASSWORD: str = os.environ["FIRST_SUPERUSER_PASSWORD"]
+    FIRST_SUPERUSER: EmailStr = "admin@Meet-up-spot.com"
+    FIRST_SUPERUSER_PASSWORD: str = "admin"
     USERS_OPEN_REGISTRATION: bool = False
 
     GOOGLE_MAPS_API_KEY: str = os.environ["GOOGLE_MAPS_API_KEY"]
-    GOOGLE_MAPS_NEARBY_SEARCH_URL: str = os.environ["GOOGLE_MAPS_NEARBY_SEARCH_URL"]
+
     GOOGLE_MAPS_BASE_URL: str = "https://maps.googleapis.com/maps/api/geocode/json"
 
     class Config:

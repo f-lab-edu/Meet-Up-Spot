@@ -13,7 +13,7 @@ from app.schemas.google_maps_api import DistanceInfo, UserPreferences
 from app.schemas.msg import Msg
 from app.schemas.place import AutoCompletedPlace, Place
 from app.services import user_service
-from app.services.constants import PLACETYPE, TravelMode
+from app.services.constants import AGGREGATED_ATTR, PLACETYPE, TravelMode
 from app.services.map_services import MapServices, ZeroResultException
 from app.services.recommend_services import Recommender
 
@@ -32,6 +32,7 @@ def request_places(
     addresses: List[str],
     place_type: PLACETYPE = PLACETYPE.CAFE,
     max_results: int = 5,
+    filter_condition: AGGREGATED_ATTR = AGGREGATED_ATTR.DISTANCE,
     current_user: models.User = Depends(user_service.get_current_active_user),
     db: Session = Depends(get_db),
 ):
@@ -43,7 +44,11 @@ def request_places(
             db,
             current_user,
             map_services,
-            UserPreferences(place_type=place_type, return_count=max_results),
+            UserPreferences(
+                place_type=place_type,
+                return_count=max_results,
+                filter_condition=filter_condition,
+            ),
         )
         complete_addresses = map_services.get_complete_addresses(
             db, current_user, addresses

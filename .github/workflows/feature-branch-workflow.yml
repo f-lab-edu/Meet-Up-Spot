@@ -39,20 +39,9 @@ jobs:
           pipenv install --dev --deploy --ignore-pipfile
           npm install -g mjml
 
-      - name: Display installed packages
-        run: |
-          pipenv run pip list
-
       - name: Create database
         run: |
           sudo docker-compose -f ./testing.yml up -d db
-
-      - name: Check running containers
-        run: |
-          sudo docker ps
-      - name: Check Docker container logs
-        run: |
-          sudo docker logs meet-up-spot_db_1
 
       - name: Create directory and Build MJML files
         run: |
@@ -68,7 +57,7 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pipenv run pytest -v --cov=tests/ --cov-report=xml:./coverage.xml
+          pipenv run pytest -v --cov --cov-report=xml:./coverage.xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2

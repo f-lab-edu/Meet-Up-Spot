@@ -165,7 +165,6 @@ class MapAdapter:
             language=language,
         )
 
-        print(len(destinations))
         distances = []
         for row_idx, row in enumerate(matrix["rows"]):
             for ele_idx, element in enumerate(row["elements"]):
@@ -284,7 +283,6 @@ class MapServices:
         )
         results = response["results"]
         places = []
-        print(results)
         for result in results[:20]:
             try:
                 # location = self.create_or_get_location(db, result)
@@ -355,7 +353,7 @@ class MapServices:
             language="ko",
             is_place_id=is_place_id,
         )
-        distances: DistanceInfo = self.map_adapter.calculate_distance_matrix(
+        distances: List[DistanceInfo] = self.map_adapter.calculate_distance_matrix(
             db, user, **asdict(params)
         )
 

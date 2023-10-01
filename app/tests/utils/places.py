@@ -13,9 +13,9 @@ from app.tests.utils.utils import random_lower_string
 
 mock_place_obj = Place(
     id=1,
-    place_id="test_place_id",
+    place_id=random_lower_string(),
     name="Test Place",
-    address="Test Address",
+    address=random_lower_string(),
     user_ratings_total=100,
     rating=4.5,
     location_id=1,
@@ -23,7 +23,7 @@ mock_place_obj = Place(
 )
 mock_place_obj2 = Place(
     id=1,
-    place_id="test_place_id2",
+    place_id=random_lower_string(),
     name="Test Place2",
     address="Test Address2",
     user_ratings_total=100,
@@ -120,30 +120,6 @@ def create_random_place(
     )
 
     return crud.place.create(db, obj_in=place_in)
-
-
-def create_location_place(db):
-    location_create = LocationCreate(
-        latitude=123.456,
-        longitude=789.101,
-        compound_code="test_compound_code",
-        global_code="test_global_code",
-    )
-
-    location = crud.location.create(db, obj_in=location_create)
-
-    place_create = PlaceCreate(
-        place_id="test_place_id",
-        name="Test Place",
-        address="Test Address",
-        user_ratings_total=100,
-        rating=4.5,
-        location_id=location.id,
-        place_types=["cafe"],
-    )
-    place = crud.place.create(db, obj_in=place_create)
-
-    return location, place
 
 
 distance_info_list = [

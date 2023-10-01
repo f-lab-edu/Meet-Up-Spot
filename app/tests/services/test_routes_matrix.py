@@ -1,9 +1,12 @@
+import pytest
+
 from app.schemas.google_maps_api import DistanceInfo
 from app.services.constants import AGGREGATED_ATTR
 from app.services.routes_matrix_services import DestinationSummary, RoutesMatrix
 from app.tests.utils.places import create_random_place, distance_info_list
 
 
+@pytest.mark.isolated
 def test_update_candidate_addresses(db):
     place_has_no_address = [
         create_random_place(
@@ -59,9 +62,13 @@ def test_sort_destinations_by_aggregated_attr():
 
     assert res == [
         DestinationSummary(
-            destination_id="ChIJN1t_tDeuEmsRUsoyG83frY1", total_value=2104
+            destination_id="ChIJN1t_tDeuEmsRUsoyG83frY1",
+            total_value=distance_info_list[0].duration_value
+            + distance_info_list[2].duration_value,
         ),
         DestinationSummary(
-            destination_id="ChIJN1t_tDeuEmsRUsoyG83frY2", total_value=5233
+            destination_id="ChIJN1t_tDeuEmsRUsoyG83frY2",
+            total_value=distance_info_list[1].duration_value
+            + distance_info_list[3].duration_value,
         ),
     ]

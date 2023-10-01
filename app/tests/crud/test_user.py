@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app import crud
 from app.core.security import verify_password
 from app.schemas.user import UserCreate, UserUpdate
-from app.tests.utils.places import create_location_place
+from app.tests.utils.places import create_random_place
 from app.tests.utils.utils import random_email, random_lower_string
 
 
@@ -100,7 +100,7 @@ def test_mark_unmark_interest(db: Session) -> None:
     email = random_email()
     user_in = UserCreate(email=email, password=password, is_superuser=True)
     user = crud.user.create(db, obj_in=user_in)
-    _, place = create_location_place(db)
+    place = create_random_place(db)
 
     user = crud.user.mark_interest(db, user=user, place=place)
     assert user
@@ -117,7 +117,6 @@ def test_mark_unmark_interest(db: Session) -> None:
 
     db.delete(user)
     db.delete(place)
-    db.delete(place.location)
     db.commit()
 
 
@@ -126,7 +125,7 @@ def test_has_interest(db: Session) -> None:
     email = random_email()
     user_in = UserCreate(email=email, password=password, is_superuser=True)
     user = crud.user.create(db, obj_in=user_in)
-    _, place = create_location_place(db)
+    place = create_random_place(db)
 
     user = crud.user.mark_interest(db, user=user, place=place)
     assert user

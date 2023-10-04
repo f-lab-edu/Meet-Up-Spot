@@ -5,6 +5,7 @@ from typing import List
 from app import crud
 from app.models.place import Place
 from app.schemas.google_maps_api import DistanceInfo
+from app.schemas.place import PlaceUpdate
 from app.services.constants import AGGREGATED_ATTR
 
 DestinationSummary = namedtuple("DestinationSummary", ("destination_id, total_value"))
@@ -32,7 +33,9 @@ class RoutesMatrix:
                 logger.info(
                     f"Updating address: {matrix.destination} != {candidate.address}"
                 )
-                updated_data = {"address": matrix.destination}
+                updated_data = PlaceUpdate(
+                    place_id=candidate.place_id, address=matrix.destination
+                )
                 crud.place.update(db, db_obj=candidate, obj_in=updated_data)
 
     @property

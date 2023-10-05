@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, Type, Union
 from sqlalchemy.orm import Session
 
 from app.core.config import get_app_settings
+from app.core.settings.base import AppEnvTypes
 from app.crud.base import CRUDBase
 from app.models.place import Place, PlaceType
 from app.schemas.place import PlaceCreate, PlaceUpdate
@@ -59,7 +60,7 @@ class CRUDPlace(CRUDBase[Place, PlaceCreate, PlaceUpdate]):
         return super().update(db, db_obj=db_obj, obj_in=update_data)
 
 
-class MemoryCRUDPlace:
+class MemoryCRUDPlace(CRUDBase[Place, PlaceCreate, PlaceUpdate]):
     def __init__(self):
         self._places = set([])
 
@@ -76,15 +77,27 @@ class MemoryCRUDPlace:
 
     def create(self, db=None, obj_in=None):
         self._places.add(obj_in)
+
         return obj_in
 
     def update(self, db=None, db_obj=None, obj_in=None):
         self._places.remove(db_obj)
         self._places.add(obj_in)
+
         return obj_in
 
     def list(self):
         return list(self._places)
 
 
-place = CRUDPlace(Place)
+class CRUDPlaceFactory:
+    @staticmethod
+    def get_instance(
+        env: str, use_memory: bool = True
+    ) -> Union[CRUDPlace, MemoryCRUDPlace]:
+        if env == AppEnvTypes.test and use_memory:
+            return MemoryCRUDPlace()
+        return CRUDPlace(Place)
+
+
+place = CRUDPlaceFactory.get_instance(app_settings.APP_ENV)

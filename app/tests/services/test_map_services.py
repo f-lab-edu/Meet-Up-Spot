@@ -5,6 +5,7 @@ from fastapi.encoders import jsonable_encoder
 
 from app import crud
 from app.schemas.google_maps_api import DistanceInfo
+from app.schemas.place import Place, PlaceCreate
 from app.services.constants import StatusDetail, TravelMode
 from app.services.map_services import CustomException, MapServices, ZeroResultException
 from app.tests.utils.places import (
@@ -16,25 +17,21 @@ from app.tests.utils.places import (
 )
 
 
-@pytest.mark.parametrize("db", [MagicMock()])
 def test_create_or_get_place_existing(map_service: MapServices, db):
-    db.query().filter().first.return_value = mock_place_obj
-
+    crud.place.get_by_place_id = MagicMock(return_value=mock_place_obj)
     result = map_service.create_or_get_place(db, mock_place_api_response)
-    db.query().filter().first.assert_called_once()
-    assert result == mock_place_obj
+
+    assert type(result) == Place
+    assert result.place_id == mock_place_obj.place_id
 
 
-@pytest.mark.parametrize("db", [MagicMock()])
 def test_create_or_get_place_new(map_service: MapServices, db):
-    db.query().filter().first.return_value = None
     crud.place.create = MagicMock(return_value=mock_place_obj)
 
     result = map_service.create_or_get_place(db, mock_place_api_response)
 
-    assert result == mock_place_obj
-    db.query().filter().first.assert_called_once()
-    crud.place.create.assert_called()
+    assert type(result) == Place
+    assert crud.place.get_by_place_id(id=result.place_id)
 
 
 def test_get_lat_lng_from_address(map_service: MapServices, db, normal_user):

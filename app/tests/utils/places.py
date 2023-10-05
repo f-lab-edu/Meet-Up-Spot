@@ -95,7 +95,8 @@ def create_random_location(db: Session):
 
 
 def create_random_place(
-    db: Session,
+    db: Session = None,
+    crud_place=None,
     place_id: str = None,
     name: str = None,
     address: str = None,
@@ -119,7 +120,7 @@ def create_random_place(
         place_types=place_types,
     )
 
-    return crud.place.create(db, obj_in=place_in)
+    return crud_place.create(db, obj_in=place_in)
 
 
 distance_info_list = [

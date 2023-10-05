@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 
 from app import crud
 from app.core.security import verify_password
+from app.core.settings.app import AppSettings
+from app.crud.crud_place import CRUDPlaceFactory
 from app.schemas.user import UserCreate, UserUpdate
 from app.tests.utils.places import create_random_place
 from app.tests.utils.utils import random_email, random_lower_string
@@ -95,12 +97,14 @@ def test_update_user(db: Session) -> None:
     assert verify_password(new_password, user_2.hashed_password)
 
 
-def test_mark_unmark_interest(db: Session) -> None:
+def test_mark_unmark_interest(db: Session, settings: AppSettings) -> None:
+    crud_place = CRUDPlaceFactory.get_instance(settings.APP_ENV, False)
     password = random_lower_string()
     email = random_email()
     user_in = UserCreate(email=email, password=password, is_superuser=True)
     user = crud.user.create(db, obj_in=user_in)
-    place = create_random_place(db)
+
+    place = create_random_place(db, crud_place)
 
     user = crud.user.mark_interest(db, user=user, place=place)
     assert user
@@ -120,12 +124,14 @@ def test_mark_unmark_interest(db: Session) -> None:
     db.commit()
 
 
-def test_has_interest(db: Session) -> None:
+def test_has_interest(db: Session, settings: AppSettings) -> None:
+    crud_place = CRUDPlaceFactory.get_instance(settings.APP_ENV, False)
+
     password = random_lower_string()
     email = random_email()
     user_in = UserCreate(email=email, password=password, is_superuser=True)
     user = crud.user.create(db, obj_in=user_in)
-    place = create_random_place(db)
+    place = create_random_place(db, crud_place)
 
     user = crud.user.mark_interest(db, user=user, place=place)
     assert user

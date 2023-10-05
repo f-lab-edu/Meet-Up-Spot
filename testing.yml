@@ -18,6 +18,8 @@ services:
       - POSTGRES_PASSWORD=DO_NOT_USE_THIS_PASSWORD_IN_PRODUCTION
       - POSTGRES_DB=test_db
       - APP_ENV=test
+    env_file:
+      - test.env
 
   test-web:
     build: .
@@ -33,6 +35,8 @@ services:
       - SMTP_USER=${SMTP_USER}
       - SMTP_PASSWORD=${SMTP_PASSWORD}
       - APP_ENV=test
+    env_file:
+      - test.env
 
   test-pgadmin:
     container_name: pgadmin
@@ -44,6 +48,8 @@ services:
       - "5040:80"
     depends_on:
       - test-db
+    env_file:
+      - test.env
 
 volumes:
   test-db-data:

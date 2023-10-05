@@ -1,24 +1,17 @@
-import logging
 from typing import List
 
 from sqlalchemy.orm import Session
 
 from app import crud
 from app.models.user import User
-from app.schemas.google_maps_api import DistanceInfo, GeocodeResponse, UserPreferences
+from app.schemas.google_maps_api import GeocodeResponse, UserPreferences
 from app.schemas.place import Place
-from app.services.constants import AGGREGATED_ATTR, PLACETYPE, Radius
+from app.services.constants import PLACETYPE, Radius
+from app.services.filters_services import DistanceInfoFilter
 from app.services.map_services import MapServices
+from app.services.routes_matrix_services import RoutesMatrix
 
-from .midpoint_services import (
-    DestinationSummary,
-    calculate_midpoint_from_addresses,
-    harversine_distance,
-    sort_destinations_by_aggregated_attr,
-)
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from .midpoint_services import calculate_midpoint_from_addresses, harversine_distance
 
 
 class CandidateFetcher:
@@ -40,7 +33,6 @@ class CandidateFetcher:
 
             if maximum_distance >= Radius.THIRD_RADIUS.value * 2:
                 return Radius.THIRD_RADIUS.value
-        print(maximum_distance)
         return maximum_distance // 2
 
     def fetch_by_address(self, address: str, place_type: PLACETYPE) -> List[Place]:
@@ -95,26 +87,6 @@ class Recommender:
         self.candidate_fetcher = CandidateFetcher(db, user, map_services)
         self.user_preferences: UserPreferences = user_preferences
 
-    def update_candidate_addresses(
-        self, distance_matrix: List[DistanceInfo], candidates: List[Place]
-    ):
-        """
-        Update the address of the candidate.
-
-        :param db: Database session
-        :param distance_matrix: The distance matrix results.
-        :param candidates: The list of candidates to update.
-        """
-        candidates_dict = {candidate.place_id: candidate for candidate in candidates}
-        for matrix in distance_matrix:
-            candidate = candidates_dict.get(matrix.destination_id)
-            if candidate and matrix.destination != candidate.address:
-                logger.info(
-                    f"Updating address: {matrix.destination} != {candidate.address}"
-                )
-                updated_data = {"address": matrix.destination}
-                crud.place.update(self.db, db_obj=candidate, obj_in=updated_data)
-
     def recommend_places(
         self,
         db: Session,
@@ -129,45 +101,7 @@ class Recommender:
             candidates = self.candidate_fetcher.fetch_by_midpoint(
                 addresses, self.user_preferences.place_type
             )
-            return self.rank_candidates(candidates, addresses=addresses)
-            # return candidates
-
-    def filter_candidates_by_distance_and_duration(
-        self,
-        distance_matrix: List[DistanceInfo],
-        candidates: List[Place],
-    ) -> List[Place]:
-        """
-        거리와 시간으로 후보 장소들을 필터링합니다.
-        """
-        min_distance_candidates: List[
-            DestinationSummary
-        ] = sort_destinations_by_aggregated_attr(
-            distance_matrix,
-            AGGREGATED_ATTR.DISTANCE,
-            self.user_preferences.return_count,
-        )
-        min_duration_candidates: List[
-            DestinationSummary
-        ] = sort_destinations_by_aggregated_attr(
-            distance_matrix,
-            AGGREGATED_ATTR.DURATION,
-            self.user_preferences.return_count,
-        )
-
-        aggregated_destination_ids = {
-            result.destination_id
-            for result in min_distance_candidates + min_duration_candidates
-        }
-
-        filtered_candidates = [
-            candidate
-            for candidate in candidates
-            if candidate.place_id in aggregated_destination_ids
-        ]
-
-        # 경로 거리,시간 필터링에서 같은 결과 나올수 있어서 중복 제거
-        return list(set(filtered_candidates))[: self.user_preferences.return_count]
+        return self.rank_candidates(candidates, addresses=addresses)
 
     # TODO:추가적인 랭킹 또는 필터링 로직을 적용
     def rank_candidates(
@@ -175,7 +109,7 @@ class Recommender:
         candidates: List[Place],
         addresses: List[str],
     ) -> List[Place]:
-        distance_matrix: DistanceInfo = (
+        routes_matrix = RoutesMatrix(
             self.map_services.get_distance_matrix_for_places(
                 self.db,
                 self.user,
@@ -185,10 +119,10 @@ class Recommender:
         )
 
         # NOTE: 약간 어색하지만 중간에 candidate랑 get_distance_matrix_for_places애서 찾아온 주소가 일관성이 없어서 여기서 수정해줌
-        self.update_candidate_addresses(distance_matrix, candidates)
+        routes_matrix.update_candidate_addresses(self.db, candidates)
 
-        filtered_cadidates = self.filter_candidates_by_distance_and_duration(
-            distance_matrix, candidates
-        )
+        filtered_cadidates = DistanceInfoFilter(
+            routes_matrix, self.user_preferences
+        ).apply(candidates)
 
         return filtered_cadidates

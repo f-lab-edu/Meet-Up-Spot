@@ -15,7 +15,7 @@ jobs:
       SMTP_USER: ${{ secrets.SMTP_USER }}
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
       GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
-      DATABASE_URL: "postgresql+psycopg2://postgres:DO_NOT_USE_THIS_PASSWORD_IN_PRODUCTION@127.0.0.1:5432/test_db"
+      DATABASE_URL: "postgresql+psycopg2://postgres:DO_NOT_USE_THIS_PASSWORD_IN_PRODUCTION@127.0.0.1:5433/test_db"
       APP_ENV: "test"
 
     steps:
@@ -39,20 +39,9 @@ jobs:
           pipenv install --dev --deploy --ignore-pipfile
           npm install -g mjml
 
-      - name: Display installed packages
-        run: |
-          pipenv run pip list
-
       - name: Create database
         run: |
-          sudo docker-compose -f ./testing.yml up -d db
-
-      - name: Check running containers
-        run: |
-          sudo docker ps
-      - name: Check Docker container logs
-        run: |
-          sudo docker logs meet-up-spot_db_1
+          sudo docker-compose -f ./testing.yml up -d test-db
 
       - name: Create directory and Build MJML files
         run: |
@@ -68,7 +57,8 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pipenv run pytest -v --cov=tests/ --cov-report=xml:./coverage.xml
+          pipenv run pytest -s -v -m "not isolated" --cov --cov-report=xml:./coverage.xml
+          pipenv run pytest -s -v -n auto -m "isolated" --cov --cov-append --cov-report=xml:./coverage.xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2

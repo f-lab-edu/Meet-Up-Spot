@@ -7,6 +7,7 @@ from pydantic.dataclasses import dataclass
 
 from app.schemas.place import Place
 from app.services.constants import (
+    AGGREGATED_ATTR,
     PLACETYPE,
     TrafficModel,
     TransitMode,
@@ -77,3 +78,4 @@ class DistanceInfo:
 class UserPreferences:
     place_type: PLACETYPE
     return_count: int
+    filter_condition: Optional[AGGREGATED_ATTR] = None

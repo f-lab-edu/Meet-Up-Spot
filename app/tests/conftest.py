@@ -41,6 +41,15 @@ def db() -> Generator:
     db.close()
 
 
+@pytest.fixture(scope="function")
+def db_session():
+    session = TestingSessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
+
+
 def get_global_db_override():
     return global_db
 

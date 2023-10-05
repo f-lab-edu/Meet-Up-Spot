@@ -6,9 +6,8 @@ from app.tests.utils.places import create_random_place
 
 
 def test_create_place(db: Session):
-    place = create_random_place(db, place_id="test_place_id", name="Test Place")
+    place = create_random_place(db, name="Test Place")
 
-    assert place.place_id == "test_place_id"
     assert place.name == "Test Place"
 
 

@@ -13,9 +13,9 @@ from app.tests.utils.utils import random_lower_string
 
 mock_place_obj = Place(
     id=1,
-    place_id="test_place_id",
+    place_id=random_lower_string(),
     name="Test Place",
-    address="Test Address",
+    address=random_lower_string(),
     user_ratings_total=100,
     rating=4.5,
     location_id=1,
@@ -23,7 +23,7 @@ mock_place_obj = Place(
 )
 mock_place_obj2 = Place(
     id=1,
-    place_id="test_place_id2",
+    place_id=random_lower_string(),
     name="Test Place2",
     address="Test Address2",
     user_ratings_total=100,
@@ -122,66 +122,42 @@ def create_random_place(
     return crud.place.create(db, obj_in=place_in)
 
 
-def create_location_place(db):
-    location_create = LocationCreate(
-        latitude=123.456,
-        longitude=789.101,
-        compound_code="test_compound_code",
-        global_code="test_global_code",
-    )
-
-    location = crud.location.create(db, obj_in=location_create)
-
-    place_create = PlaceCreate(
-        place_id="test_place_id",
-        name="Test Place",
-        address="Test Address",
-        user_ratings_total=100,
-        rating=4.5,
-        location_id=location.id,
-        place_types=["cafe"],
-    )
-    place = crud.place.create(db, obj_in=place_create)
-
-    return location, place
-
-
 distance_info_list = [
     DistanceInfo(
         origin="대한민국 경기도 성남시 분당구 성남대로 지하 601 서현",
         destination_id="ChIJN1t_tDeuEmsRUsoyG83frY1",
         destination="대한민국 경기도 성남시 분당구 삼평동 판교역로 160 판교역",
         distance_text="2.2 km",
-        distance_value=2186,
+        distance_value=100,
         duration_text="22분",
-        duration_value=1299,
+        duration_value=100,
     ),
     DistanceInfo(
         origin="대한민국 경기도 성남시 분당구 성남대로 지하 601 서현",
         destination_id="ChIJN1t_tDeuEmsRUsoyG83frY2",
         destination="대한민국 서울특별시 중구 소공동 세종대로18길 2 서울역",
         distance_text="29.4 km",
-        distance_value=29450,
+        distance_value=1000,
         duration_text="53분",
-        duration_value=3168,
+        duration_value=1000,
     ),
     DistanceInfo(
         origin="대한민국 서울특별시 양재역",
         destination_id="ChIJN1t_tDeuEmsRUsoyG83frY1",
         destination="대한민국 경기도 성남시 분당구 삼평동 판교역로 160 판교역",
         distance_text="12.9 km",
-        distance_value=12881,
+        distance_value=500,
         duration_text="13분",
-        duration_value=805,
+        duration_value=500,
     ),
     DistanceInfo(
         origin="대한민국 서울특별시 양재역",
         destination_id="ChIJN1t_tDeuEmsRUsoyG83frY2",
         destination="대한민국 서울특별시 중구 소공동 세종대로18길 2 서울역",
         distance_text="15.5 km",
-        distance_value=15475,
+        distance_value=300,
         duration_text="34분",
-        duration_value=2065,
+        duration_value=300,
     ),
 ]
 distance_info_list_no_id = [

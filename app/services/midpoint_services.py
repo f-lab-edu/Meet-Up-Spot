@@ -1,13 +1,9 @@
 import math
-from collections import defaultdict, namedtuple
 from typing import List
 
 from haversine import haversine
 
-from app.schemas.google_maps_api import DistanceInfo, GeocodeResponse
-from app.services.constants import AGGREGATED_ATTR
-
-DestinationSummary = namedtuple("DestinationSummary", ("destination_id, total_value"))
+from app.schemas.google_maps_api import GeocodeResponse
 
 
 def calculate_midpoint(locations: List[GeocodeResponse]) -> GeocodeResponse:
@@ -66,29 +62,6 @@ def harversine_distance(coord1: GeocodeResponse, coord2: GeocodeResponse, unit="
         (coord2.latitude, coord2.longitude),
         unit=unit,
     )
-
-
-def sort_destinations_by_aggregated_attr(
-    distance_matrix: List[DistanceInfo], attribute: AGGREGATED_ATTR, count: int
-) -> List[DestinationSummary]:
-    def group_by_destination(distance_matrix: List[DistanceInfo]) -> dict:
-        destination_groups = defaultdict(list)
-        for matrix in distance_matrix:
-            destination_groups[matrix.destination_id].append(matrix)
-        return destination_groups
-
-    grouped_matrix = group_by_destination(distance_matrix)
-    results = sorted(
-        (
-            DestinationSummary(
-                destination, sum(getattr(info, attribute.value) for info in info_list)
-            )
-            for destination, info_list in grouped_matrix.items()
-        ),
-        key=lambda x: x.total_value,
-    )[:count]
-
-    return results
 
 
 def calculate_midpoint_from_addresses(

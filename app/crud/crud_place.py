@@ -1,10 +1,13 @@
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Type, Union
 
 from sqlalchemy.orm import Session
 
+from app.core.config import get_app_settings
 from app.crud.base import CRUDBase
 from app.models.place import Place, PlaceType
 from app.schemas.place import PlaceCreate, PlaceUpdate
+
+app_settings = get_app_settings()
 
 
 class CRUDPlace(CRUDBase[Place, PlaceCreate, PlaceUpdate]):
@@ -54,6 +57,34 @@ class CRUDPlace(CRUDBase[Place, PlaceCreate, PlaceUpdate]):
             del update_data["place_types"]
             update_data["place_types"] = type_obejcts
         return super().update(db, db_obj=db_obj, obj_in=update_data)
+
+
+class MemoryCRUDPlace:
+    def __init__(self):
+        self._places = set([])
+
+    @property
+    def places(self):
+        return self._places
+
+    @places.setter
+    def places(self, value):
+        self._places = set(value)
+
+    def get_by_place_id(self, db: Session = None, *, id: str) -> Optional[Place]:
+        return next((place for place in self.places if place.place_id == id), None)
+
+    def create(self, db=None, obj_in=None):
+        self._places.add(obj_in)
+        return obj_in
+
+    def update(self, db=None, db_obj=None, obj_in=None):
+        self._places.remove(db_obj)
+        self._places.add(obj_in)
+        return obj_in
+
+    def list(self):
+        return list(self._places)
 
 
 place = CRUDPlace(Place)

@@ -3,6 +3,8 @@ from collections import defaultdict, namedtuple
 from typing import List
 
 from app import crud
+from app.core.config import get_app_settings
+from app.crud.crud_place import CRUDPlaceFactory
 from app.models.place import Place
 from app.schemas.google_maps_api import DistanceInfo
 from app.schemas.place import PlaceUpdate
@@ -12,6 +14,8 @@ DestinationSummary = namedtuple("DestinationSummary", ("destination_id, total_va
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+app_settings = get_app_settings()
 
 
 class RoutesMatrix:
@@ -26,6 +30,7 @@ class RoutesMatrix:
         :param distance_matrix: The distance matrix results.
         :param candidates: The list of candidates to update.
         """
+        place_crud = CRUDPlaceFactory.get_instance(app_settings.APP_ENV)
         candidates_dict = {candidate.place_id: candidate for candidate in candidates}
         for matrix in self.distance_matrix:
             candidate = candidates_dict.get(matrix.destination_id)
@@ -36,7 +41,7 @@ class RoutesMatrix:
                 updated_data = PlaceUpdate(
                     place_id=candidate.place_id, address=matrix.destination
                 )
-                crud.place.update(db, db_obj=candidate, obj_in=updated_data)
+                place_crud.update(db, db_obj=candidate, obj_in=updated_data)
 
     @property
     def group_by_destination(self) -> dict:

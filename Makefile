@@ -1,43 +1,46 @@
-
 ENV_FILE ?= test.env
+DOCKER_COMPOSE_TEST = docker-compose -f ./testing.yml
+PIPENV_RUN = PIPENV_DOTENV_LOCATION=$(ENV_FILE) pipenv run
 
+.PHONY: build test_in_actions test_mark test_one run_pgadmin first_user meet-build meet-up meet-down meet-initial_data
 
 build:
-	docker-compose -f ./testing.yml build
+	$(DOCKER_COMPOSE_TEST) build
 
+prepare_db:
+	$(DOCKER_COMPOSE_TEST) up test-db -d
+	$(PIPENV_RUN) alembic upgrade head
+	$(PIPENV_RUN) python app/initial_data.py
 
-test_in_actions:
-	docker-compose -f ./testing.yml up test-db -d
-	PIPENV_DOTENV_LOCATION=test.env pipenv run alembic upgrade head
-	PIPENV_DOTENV_LOCATION=test.env pipenv run python app/initial_data.py
-	-PIPENV_DOTENV_LOCATION=test.env pipenv run pytest -s -v -m "not isolated" --cov --cov-report=term
-	-PIPENV_DOTENV_LOCATION=test.env pipenv run pytest -s -v -n auto -m "isolated" --cov --cov-append --cov-report=xml:./coverage.xml
-	docker-compose -f ./testing.yml down 
+test_common:
+	-$(PIPENV_RUN) pytest -s -v -m "not isolated" --cov --cov-report=term
+	-$(PIPENV_RUN) pytest -s -v -n auto -m "isolated" --cov --cov-append --cov-report=term
+	$(DOCKER_COMPOSE_TEST) down
 
-test_mark:
-	docker-compose -f ./testing.yml up test-db -d
-	PIPENV_DOTENV_LOCATION=test.env pipenv run alembic upgrade head
-	PIPENV_DOTENV_LOCATION=test.env pipenv run python app/initial_data.py
-	-PIPENV_DOTENV_LOCATION=test.env pipenv run pytest -s -v -m "not isolated" --cov --cov-report=term
-	-PIPENV_DOTENV_LOCATION=test.env pipenv run pytest -s -v -n auto -m "isolated" --cov --cov-append --cov-report=term
-	docker-compose -f ./testing.yml down 
+test_in_actions: prepare_db
+	$(PIPENV_RUN) pytest -s -v -m "not isolated" --cov --cov-report=term
+	$(PIPENV_RUN) pytest -s -v -n auto -m "isolated" --cov --cov-append --cov-report=xml:./coverage.xml
+	$(DOCKER_COMPOSE_TEST) down
 
-test_one:
-	docker-compose -f ./testing.yml up test-db -d
-	-PIPENV_DOTENV_LOCATION=test.env pipenv run pytest -s -v ${test-path}
-	docker-compose -f ./testing.yml down 
+test_mark: prepare_db test_common
+
+test_one: prepare_db
+	$(DOCKER_COMPOSE_TEST) up test-db -d
+	-$(PIPENV_RUN) pytest -s -v ${test-path}
+	$(DOCKER_COMPOSE_TEST) down
 
 run_pgadmin:
-	docker-compose -f ./testing.yml up -d pgamdin
-
+	$(DOCKER_COMPOSE_TEST) up -d pgadmin
 
 first_user:
 	docker-compose run --rm web python app/initial_data.py
 
 meet-build:
 	docker-compose build
+
 meet-up:
-	docker-compose up 
+	docker-compose up
+
 meet-down:
 	docker-compose down
 

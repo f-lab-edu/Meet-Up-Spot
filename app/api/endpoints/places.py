@@ -54,6 +54,7 @@ def request_places(
             db, current_user, addresses
         )
 
+        crud.user.add_search_history(db, current_user, complete_addresses)
         results: List[Place] = recommend_services.recommend_places(
             db,
             complete_addresses,

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Float, ForeignKey, Integer, String, Table
+from sqlalchemy import Column, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
@@ -27,6 +27,7 @@ class Place(Base):
     place_types = relationship(
         "PlaceType", secondary=place_type_association, back_populates="places"
     )
+    searched_user_relations = relationship("UserSearchedPlace", back_populates="place")
 
 
 class PlaceType(Base):

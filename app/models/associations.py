@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, Table
+from sqlalchemy import Column, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
@@ -21,10 +21,9 @@ place_type_association = Table(
 )
 
 
-class UserSearchedPlace(Base):
+class UserSearchHistory(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("user.id", ondelete="CASCADE"))
-    place_id = Column(Integer, ForeignKey("place.id", ondelete="CASCADE"))
+    address = Column(String(255), nullable=False)
 
-    user = relationship("User", back_populates="searched_place_relations")
-    place = relationship("Place", back_populates="searched_user_relations")
+    user = relationship("User", back_populates="search_history_relations")

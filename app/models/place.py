@@ -27,7 +27,6 @@ class Place(Base):
     place_types = relationship(
         "PlaceType", secondary=place_type_association, back_populates="places"
     )
-    searched_user_relations = relationship("UserSearchedPlace", back_populates="place")
 
 
 class PlaceType(Base):

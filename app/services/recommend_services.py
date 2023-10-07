@@ -2,6 +2,7 @@ from datetime import datetime
 from difflib import SequenceMatcher
 from typing import List, Tuple
 
+import pytz
 from sqlalchemy.orm import Session
 
 from app.models.user import User
@@ -132,7 +133,7 @@ class Recommender:
         return round(SequenceMatcher(None, s1, s2).ratio(), 2)
 
     def _compute_recentness_weight(self, searched_date: datetime) -> float:
-        cur_utc_time = datetime.utcnow()
+        cur_utc_time = datetime.now(pytz.utc)
         assert cur_utc_time > searched_date
         days_since_searched = (cur_utc_time - searched_date).days
         # NOTE: 최근 7일 이내에 검색된 장소는 더 높은 가중치를 받음

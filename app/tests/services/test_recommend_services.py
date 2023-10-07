@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 
+import pytz
 from sqlalchemy.orm import Session
 
 from app.core.settings.app import AppSettings
@@ -98,7 +99,7 @@ def test_compute_recentness_weight_over_7days(
     crud_place = CRUDPlaceFactory.get_instance(settings.APP_ENV)
     candidates = [create_random_place(db, crud_place) for _ in range(1)]
     candidate_dict = candidates[0].model_dump()
-    candidate_dict["created_at"] = datetime.utcnow() - timedelta(days=8)
+    candidate_dict["created_at"] = datetime.now(pytz.utc) - timedelta(days=8)
 
     weight = recommender._compute_recentness_weight(candidate_dict["created_at"])
 
@@ -112,7 +113,7 @@ def test_compute_recentness_weight_under_7days(
     crud_place = CRUDPlaceFactory.get_instance(settings.APP_ENV)
     candidates = [create_random_place(db, crud_place) for _ in range(1)]
     candidate_dict = candidates[0].model_dump()
-    candidate_dict["created_at"] = datetime.utcnow() - timedelta(days=6)
+    candidate_dict["created_at"] = datetime.now(pytz.utc) - timedelta(days=6)
 
     weight = recommender._compute_recentness_weight(candidate_dict["created_at"])
 
@@ -170,8 +171,8 @@ def test_compute_reccomendation_score_with_search_history_relations(
     mock_user = MagicMock()
     mock_user.interested_places = []
     mock_user.search_history_relations = [
-        MagicMock(address="판교역", created_at=datetime.utcnow() - timedelta(days=6)),
-        MagicMock(address="서현역", created_at=datetime.utcnow() - timedelta(days=6)),
+        MagicMock(address="판교역", created_at=datetime.now(pytz.utc) - timedelta(days=6)),
+        MagicMock(address="서현역", created_at=datetime.now(pytz.utc) - timedelta(days=6)),
     ]
     recommender = Recommender(db, mock_user, map_service, user_preferences)
     crud_place = CRUDPlaceFactory.get_instance(settings.APP_ENV)

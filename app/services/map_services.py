@@ -203,6 +203,7 @@ class MapServices:
         if map_client is None:
             map_client = googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
         self.map_adapter = MapAdapter(map_client)
+        self.max_results = 20
 
     def create_or_get_location(self, db, result) -> Location:
         latitude = result["geometry"]["location"]["lat"]
@@ -238,6 +239,19 @@ class MapServices:
                 place_types=result["types"],
             ),
         )
+
+    def _process_nearby_places_results(
+        self, db: Session, user: User, results: List[dict]
+    ) -> List[Place]:
+        places = []
+        for result in results[: self.max_results]:
+            try:
+                place = self.create_or_get_place(db, result)
+                places.append(place)
+            except Exception as e:
+                logging.error(f"Failed to process result {result}. Error: {e}")
+
+        return places
 
     def get_lat_lng_from_address(
         self, db: Session, user: User, address: str
@@ -282,19 +296,8 @@ class MapServices:
             language="ko",
         )
         results = response["results"]
-        places = []
-        for result in results[:20]:
-            try:
-                # location = self.create_or_get_location(db, result)
-                place = self.create_or_get_place(
-                    db,
-                    result,
-                )
-                places.append(place)
-            except Exception as e:
-                logging.error(f"Failed to process result {result}. Error: {e}")
-                continue
-        return places
+
+        return self._process_nearby_places_results(db, user, results)
 
     def get_complete_addresses(
         self, db: Session, user: User, addresses: List[str]

@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import get_password_hash, verify_password
 from app.crud.base import CRUDBase
+from app.models.associations import UserSearchHistory
 from app.models.place import Place
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
@@ -66,6 +67,12 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
 
     def has_interest(self, db: Session, user: User, place: Place) -> bool:
         return place in user.interested_places
+
+    def add_search_history(self, db: Session, user: User, address: str):
+        search_history = UserSearchHistory(user=user, address=address)
+        user.search_history_relations.append(search_history)
+        db.add(user)
+        db.commit()
 
 
 user = CRUDUser(User)

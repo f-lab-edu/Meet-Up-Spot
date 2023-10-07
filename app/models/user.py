@@ -20,3 +20,16 @@ class User(Base):
     interested_places = relationship(
         "Place", secondary=user_interested_place_association, back_populates="users"
     )
+    search_history_relations = relationship("UserSearchHistory", back_populates="user")
+
+    @property
+    def preferred_types(self):
+        types_from_interested = {
+            ptype for place in self.interested_places for ptype in place.place_types
+        }
+
+        return list(types_from_interested)
+
+    @property
+    def searched_addresses(self):
+        return [relation.address for relation in self.search_history_relations]

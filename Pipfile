@@ -27,6 +27,7 @@ python-multipart = "*"
 googlemaps = "*"
 bcrypt = "*"
 pytest-xdist = "*"
+pytz = "*"
 
 [dev-packages]
 pytest-cov = "*"

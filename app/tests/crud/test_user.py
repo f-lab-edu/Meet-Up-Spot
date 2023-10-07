@@ -139,3 +139,15 @@ def test_has_interest(db: Session, settings: AppSettings) -> None:
     user = crud.user.unmark_interest(db, user=user, place=place)
     assert user
     assert not crud.user.has_interest(db, user=user, place=place)
+
+
+def test_add_search_history(db: Session, normal_user, settings: AppSettings) -> None:
+    crud_place = CRUDPlaceFactory.get_instance(settings.APP_ENV, False)
+    place = create_random_place(db, crud_place)
+    crud.user.add_search_history(db, normal_user, place.address)
+    assert len(normal_user.search_history_relations) == 1
+    assert place.address == normal_user.search_history_relations[0].address
+    db.delete(normal_user)
+    db.commit()
+    db.delete(place)
+    db.commit()

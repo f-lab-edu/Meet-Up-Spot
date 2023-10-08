@@ -35,6 +35,7 @@ class CRUDPlace(CRUDBase[Place, PlaceCreate, PlaceUpdate]):
             name=obj_in.name,
             address=obj_in.address,
             rating=obj_in.rating,
+            location_id=obj_in.location_id,
             user_ratings_total=obj_in.user_ratings_total,
         )
         db_obj.place_types = self.convert_strings_to_place_types(db, obj_in.place_types)

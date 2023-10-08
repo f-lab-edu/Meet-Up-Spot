@@ -224,7 +224,7 @@ class MapServices:
             ),
         )
 
-    def create_or_get_place(self, db, result) -> Place:
+    def create_or_get_place(self, db, result, location_id) -> Place:
         place_id = result["place_id"]
         existing_place = crud.place.get_by_place_id(db, id=place_id)
 
@@ -236,6 +236,7 @@ class MapServices:
                 address=result["vicinity"],
                 user_ratings_total=result.get("user_ratings_total", 0),
                 rating=result.get("rating", 0),
+                location_id=location_id,
                 place_types=result["types"],
             ),
         )

@@ -205,52 +205,93 @@ class MapServices:
         self.map_adapter = MapAdapter(map_client)
         self.max_results = 20
 
-    def create_or_get_location(self, db, result) -> Location:
-        latitude = result["geometry"]["location"]["lat"]
-        longitude = result["geometry"]["location"]["lng"]
-        compound_code = result["plus_code"]["compound_code"]
-        global_code = result["plus_code"]["global_code"]
+    def _extract_lat_lngs_from_results(self, results):
+        return [
+            (res["geometry"]["location"]["lat"], res["geometry"]["location"]["lng"])
+            for res in results
+        ]
 
-        existing_location = crud.location.get_by_plus_code(
-            db, compound_code=compound_code, global_code=global_code
+    def _create_new_locations_from_result(self, results):
+        return [
+            Location(
+                latitude=result["geometry"]["location"]["lat"],
+                longitude=result["geometry"]["location"]["lng"],
+                compound_code=result["plus_code"]["compound_code"],
+                global_code=result["plus_code"]["global_code"],
+            )
+            for result in results
+        ]
+
+    def create_or_get_locations(self, db, results) -> Location:
+        results_lat_lngs = self._extract_lat_lngs_from_results(results)
+
+        existing_locations = crud.location.get_by_latlng_list(
+            db, latlng_list=results_lat_lngs
         )
-        return existing_location or crud.location.create(
-            db,
-            obj_in=LocationCreate(
-                latitude=latitude,
-                longitude=longitude,
-                compound_code=compound_code,
-                global_code=global_code,
-            ),
-        )
 
-    def create_or_get_place(self, db, result, location_id) -> Place:
-        place_id = result["place_id"]
-        existing_place = crud.place.get_by_place_id(db, id=place_id)
+        existing_lat_lngs = {
+            (location.latitude, location.longitude) for location in existing_locations
+        }
 
-        return existing_place or crud.place.create(
-            db,
-            obj_in=PlaceCreate(
+        new_results = [
+            results_lat_lng
+            for results_lat_lng in results_lat_lngs
+            if results_lat_lng not in existing_lat_lngs
+        ]
+
+        new_locations = self._create_new_locations_from_result(new_results)
+
+        if new_locations:
+            crud.location.bulk_insert(
+                db, [location.model_dump() for location in new_locations]
+            )
+
+        return existing_locations + new_locations
+
+    def _create_new_places_from_results(self, results, location_ids_map) -> List[Place]:
+        return [
+            Place(
                 place_id=result["place_id"],
                 name=result["name"],
                 address=result["vicinity"],
                 user_ratings_total=result.get("user_ratings_total", 0),
                 rating=result.get("rating", 0),
-                location_id=location_id,
                 place_types=result["types"],
-            ),
-        )
+                location_id=location_ids_map[
+                    (
+                        result["geometry"]["location"]["lat"],
+                        result["geometry"]["location"]["lng"],
+                    )
+                ],
+            )
+            for result in results
+        ]
+
+    def create_or_get_places(self, db, results, location_ids_map) -> List[Place]:
+        results_place_ids = [result["place_id"] for result in results]
+        existing_places = crud.place.get_by_place_ids(db, place_ids=results_place_ids)
+
+        existing_place_ids = {place.place_id for place in existing_places}
+        new_results = [
+            result_place_id
+            for result_place_id in results_place_ids
+            if result_place_id not in existing_place_ids
+        ]
+
+        new_places = self._create_new_places_from_results(new_results, location_ids_map)
+
+        if new_places:
+            crud.place.bulk_insert(db, [place.model_dump() for place in new_places])
+
+        return existing_places + new_places
 
     def _process_nearby_places_results(
         self, db: Session, user: User, results: List[dict]
     ) -> List[Place]:
-        places = []
-        for result in results[: self.max_results]:
-            try:
-                place = self.create_or_get_place(db, result)
-                places.append(place)
-            except Exception as e:
-                logging.error(f"Failed to process result {result}. Error: {e}")
+        locations = self.create_or_get_locations(db, results)
+        location_ids_map = {(loc.latitude, loc.longitude): loc.id for loc in locations}
+
+        places = self.create_or_get_places(db, results, location_ids_map)
 
         return places
 

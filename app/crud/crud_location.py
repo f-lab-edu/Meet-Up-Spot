@@ -1,5 +1,6 @@
-from typing import Optional
+from typing import List, Optional, Tuple
 
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app.crud.base import CRUDBase
@@ -16,6 +17,15 @@ class CRUDLocation(CRUDBase[Location, LocationCreate, LocationUpdate]):
             .filter(Location.latitude == lat, Location.longitude == lng)
             .first()
         )
+
+    def get_by_latlng_list(
+        self, db: Session, latlng_list: List[Tuple[float, float]]
+    ) -> List[Location]:
+        or_conditions = [
+            and_(Location.latitude == lat, Location.longitude == lng)
+            for lat, lng in latlng_list
+        ]
+        return db.query(Location).filter(or_(*or_conditions)).all()
 
     def get_by_plus_code(
         self, db: Session, *, global_code: str, compound_code: str

@@ -15,6 +15,9 @@ class CRUDPlace(CRUDBase[Place, PlaceCreate, PlaceUpdate]):
     def get_by_place_id(self, db: Session, *, id: str) -> Optional[Place]:
         return db.query(Place).filter(Place.place_id == id).first()
 
+    def get_by_place_ids(self, db: Session, place_ids: List[int]) -> List[Place]:
+        return db.query(Place).filter(Place.place_id.in_(place_ids)).all()
+
     def convert_strings_to_place_types(
         self, db: Session, place_types: List[str]
     ) -> List[PlaceType]:

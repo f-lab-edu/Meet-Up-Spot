@@ -63,6 +63,10 @@ class CRUDPlace(CRUDBase[Place, PlaceCreate, PlaceUpdate]):
             update_data["place_types"] = type_obejcts
         return super().update(db, db_obj=db_obj, obj_in=update_data)
 
+    def bulk_insert(self, db, place_list: List[dict]):
+        db.bulk_insert_mappings(Place, place_list)
+        db.commit()
+
 
 class MemoryCRUDPlace(CRUDBase[Place, PlaceCreate, PlaceUpdate]):
     def __init__(self):
@@ -79,6 +83,9 @@ class MemoryCRUDPlace(CRUDBase[Place, PlaceCreate, PlaceUpdate]):
     def get_by_place_id(self, db: Session = None, *, id: str) -> Optional[Place]:
         return next((place for place in self.places if place.place_id == id), None)
 
+    def get_by_place_ids(self, db: Session, place_ids: List[int]) -> List[Place]:
+        return [place for place in self.places if place.place_id in place_ids]
+
     def create(self, db=None, obj_in=None):
         self._places.add(obj_in)
 
@@ -90,8 +97,12 @@ class MemoryCRUDPlace(CRUDBase[Place, PlaceCreate, PlaceUpdate]):
 
         return obj_in
 
+    @property
     def list(self):
         return list(self._places)
+
+    def bulk_insert(self, db, place_list: List[dict]):
+        return self._places.update([PlaceCreate(**place) for place in place_list])
 
 
 class CRUDPlaceFactory:

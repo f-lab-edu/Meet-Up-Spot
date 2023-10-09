@@ -16,7 +16,7 @@ user_interested_place_association = Table(
 place_type_association = Table(
     "place_type_association",
     Base.metadata,
-    Column("place_id", Integer, ForeignKey("place.id", ondelete="CASCADE")),
+    Column("place_id", String(255), ForeignKey("place.place_id", ondelete="CASCADE")),
     Column("place_type_id", Integer, ForeignKey("placetype.id", ondelete="CASCADE")),
 )
 

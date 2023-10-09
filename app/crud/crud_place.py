@@ -1,10 +1,12 @@
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, List, Optional, Union
 
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
 from app.core.config import get_app_settings
 from app.core.settings.base import AppEnvTypes
 from app.crud.base import CRUDBase
+from app.models.associations import place_type_association
 from app.models.place import Place, PlaceType
 from app.schemas.place import PlaceCreate, PlaceUpdate
 
@@ -24,13 +26,16 @@ class CRUDPlace(CRUDBase[Place, PlaceCreate, PlaceUpdate]):
         existing_types = (
             db.query(PlaceType).filter(PlaceType.type_name.in_(place_types)).all()
         )
+
         existing_types_dict = {item.type_name: item for item in existing_types}
 
-        types = [
-            existing_types_dict.get(place_type, PlaceType(type_name=place_type))
+        new_types = [
+            PlaceType(type_name=place_type)
             for place_type in place_types
+            if place_type not in existing_types_dict
         ]
-        return types
+
+        return existing_types, new_types
 
     def create(self, db: Session, *, obj_in: PlaceCreate) -> Place:
         db_obj = Place(
@@ -41,7 +46,10 @@ class CRUDPlace(CRUDBase[Place, PlaceCreate, PlaceUpdate]):
             location_id=obj_in.location_id,
             user_ratings_total=obj_in.user_ratings_total,
         )
-        db_obj.place_types = self.convert_strings_to_place_types(db, obj_in.place_types)
+        existing_types, new_types = self.convert_strings_to_place_types(
+            db, obj_in.place_types
+        )
+        db_obj.place_types = existing_types + new_types
 
         db.add(db_obj)
         db.commit()
@@ -56,15 +64,56 @@ class CRUDPlace(CRUDBase[Place, PlaceCreate, PlaceUpdate]):
         else:
             update_data = obj_in.model_dump(exclude_unset=True)
         if update_data.get("place_types"):
-            type_obejcts = self.convert_strings_to_place_types(
+            existing_types, new_types = self.convert_strings_to_place_types(
                 db, update_data["place_types"]
             )
             del update_data["place_types"]
-            update_data["place_types"] = type_obejcts
+            update_data["place_types"] = existing_types + new_types
         return super().update(db, db_obj=db_obj, obj_in=update_data)
 
     def bulk_insert(self, db, place_list: List[dict]):
+        all_place_types = set(
+            place_type for place in place_list for place_type in place["place_types"]
+        )
+
+        # 기존에 있는 place_types와 새롭게 추가되어야 할 place_types를 구분합니다.
+        existing_types, new_types = self.convert_strings_to_place_types(
+            db, list(all_place_types)
+        )
+
+        db.bulk_insert_mappings(
+            PlaceType, [jsonable_encoder(place_type) for place_type in new_types]
+        )
+        db.flush()
+
+        added_place_types = (
+            db.query(PlaceType)
+            .filter(
+                PlaceType.type_name.in_(
+                    [place_type.type_name for place_type in new_types]
+                )
+            )
+            .all()
+        )
+
+        combined_types_dict = {
+            item.type_name: item for item in existing_types + added_place_types
+        }
+
         db.bulk_insert_mappings(Place, place_list)
+
+        association_data = []
+        for place in place_list:
+            for place_type in place["place_types"]:
+                association_data.append(
+                    {
+                        "place_id": place["place_id"],
+                        "place_type_id": combined_types_dict[place_type].id,
+                    }
+                )
+
+        # 관계 테이블에 데이터를 삽입합니다.
+        db.execute(place_type_association.insert(), association_data)
         db.commit()
 
 

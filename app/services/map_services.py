@@ -213,7 +213,7 @@ class MapServices:
 
     def _create_new_locations_from_result(self, results):
         return [
-            Location(
+            LocationCreate(
                 latitude=result["geometry"]["location"]["lat"],
                 longitude=result["geometry"]["location"]["lng"],
                 compound_code=result["plus_code"]["compound_code"],
@@ -234,9 +234,13 @@ class MapServices:
         }
 
         new_results = [
-            results_lat_lng
-            for results_lat_lng in results_lat_lngs
-            if results_lat_lng not in existing_lat_lngs
+            result
+            for result in results
+            if (
+                result["geometry"]["location"]["lat"],
+                result["geometry"]["location"]["lng"],
+            )
+            not in existing_lat_lngs
         ]
 
         new_locations = self._create_new_locations_from_result(new_results)
@@ -245,12 +249,14 @@ class MapServices:
             crud.location.bulk_insert(
                 db, [location.model_dump() for location in new_locations]
             )
+            lat_lngs = [(loc.latitude, loc.longitude) for loc in new_locations]
+            new_locations = crud.location.get_by_latlng_list(db, latlng_list=lat_lngs)
 
         return existing_locations + new_locations
 
     def _create_new_places_from_results(self, results, location_ids_map) -> List[Place]:
         return [
-            Place(
+            PlaceCreate(
                 place_id=result["place_id"],
                 name=result["name"],
                 address=result["vicinity"],
@@ -273,15 +279,16 @@ class MapServices:
 
         existing_place_ids = {place.place_id for place in existing_places}
         new_results = [
-            result_place_id
-            for result_place_id in results_place_ids
-            if result_place_id not in existing_place_ids
+            result for result in results if result["place_id"] not in existing_place_ids
         ]
 
         new_places = self._create_new_places_from_results(new_results, location_ids_map)
 
         if new_places:
             crud.place.bulk_insert(db, [place.model_dump() for place in new_places])
+            new_places = crud.place.get_by_place_ids(
+                db, place_ids=[place.place_id for place in new_places]
+            )
 
         return existing_places + new_places
 
@@ -293,7 +300,7 @@ class MapServices:
 
         places = self.create_or_get_places(db, results, location_ids_map)
 
-        return places
+        return places[: self.max_results]
 
     def get_lat_lng_from_address(
         self, db: Session, user: User, address: str

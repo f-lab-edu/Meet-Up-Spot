@@ -1,37 +1,127 @@
 from unittest.mock import MagicMock
 
 import pytest
-from fastapi.encoders import jsonable_encoder
 
 from app import crud
+from app.core.settings.app import AppSettings
+from app.crud.crud_location import CRUDLocationFactory
+from app.crud.crud_place import CRUDPlaceFactory
 from app.schemas.google_maps_api import DistanceInfo
-from app.schemas.place import Place, PlaceCreate
-from app.services.constants import StatusDetail, TravelMode
-from app.services.map_services import CustomException, MapServices, ZeroResultException
+from app.services.constants import TravelMode
+from app.services.map_services import MapServices, ZeroResultException
 from app.tests.utils.places import (
+    create_random_location,
+    create_random_place,
     distance_info_list_no_id,
     mock_geocode_response,
     mock_location,
-    mock_place_api_response,
-    mock_place_obj,
 )
 
 
-def test_create_or_get_place_existing(map_service: MapServices, db):
-    crud.place.get_by_place_id = MagicMock(return_value=mock_place_obj)
-    result = map_service.create_or_get_place(db, mock_place_api_response)
+def test_create_or_get_locations_all_existing(
+    map_service: MapServices, db, settings: AppSettings
+):
+    crud_location = CRUDLocationFactory.get_instance(settings.APP_ENV)
+    map_service._create_new_locations_from_result = MagicMock()
+    map_service._extract_lat_lngs_from_results = MagicMock()
 
-    assert type(result) == Place
-    assert result.place_id == mock_place_obj.place_id
+    for i in range(3):
+        create_random_location(db, crud_location, latitude=i + 1, longitude=i + 1)
+
+    map_service._extract_lat_lngs_from_results.return_value = [
+        (i + 1, i + 1) for i in range(3)
+    ]
+
+    crud.location.get_by_latlng_list = MagicMock(return_value=crud_location.list)
+
+    map_service._create_new_locations_from_result.return_value = []
+    result = map_service.create_or_get_locations(db, crud_location.locations)
+
+    assert len(result) == 3
+    assert len(crud_location.locations) == 3
 
 
-def test_create_or_get_place_new(map_service: MapServices, db):
-    crud.place.create = MagicMock(return_value=mock_place_obj)
+def test_create_or_get_locations_not_existing(
+    map_service: MapServices, db, settings: AppSettings
+):
+    crud_location = CRUDLocationFactory.get_instance(settings.APP_ENV)
+    map_service._create_new_locations_from_result = MagicMock()
+    map_service._extract_lat_lngs_from_results = MagicMock()
 
-    result = map_service.create_or_get_place(db, mock_place_api_response)
+    for i in range(3):
+        create_random_location(db, crud_location, latitude=i + 1, longitude=i + 1)
 
-    assert type(result) == Place
-    assert crud.place.get_by_place_id(id=result.place_id)
+    map_service._extract_lat_lngs_from_results.return_value = [
+        (i + 1, i + 1) for i in range(3)
+    ]
+
+    crud.location.get_by_latlng_list = MagicMock(return_value=crud_location.list)
+
+    new_locations = [
+        create_random_location(db, crud_location, latitude=i + 4, longitude=i + 4)
+        for i in range(3)
+    ]
+    map_service._create_new_locations_from_result.return_value = new_locations
+    result = map_service.create_or_get_locations(db, crud_location.locations)
+
+    assert len(result) == 6
+    assert len(crud_location.locations) == 6
+
+
+def test_create_or_get_places_all_existing(
+    map_service: MapServices,
+    db,
+    settings: AppSettings,
+):
+    crud_place = CRUDPlaceFactory.get_instance(settings.APP_ENV)
+    map_service._create_new_places_from_results = MagicMock()
+
+    crud_place.places = [
+        create_random_place(db, crud_place, place_id=str(i), location_id=i)
+        for i in range(3)
+    ]
+    crud.place.get_by_place_ids = MagicMock(return_value=crud_place.list)
+
+    existing_places = [
+        create_random_place(db, crud_place, place_id=str(i), location_id=i).model_dump()
+        for i in range(3)
+    ]
+
+    map_service._create_new_places_from_results.return_value = []
+    result = map_service.create_or_get_places(
+        db, existing_places, [i for i in range(3)]
+    )
+
+    assert len(result) == 3
+    assert len(crud_place.places) == 3
+
+
+def test_create_or_get_places_not_existing(
+    map_service: MapServices, db, settings: AppSettings
+):
+    crud_place = CRUDPlaceFactory.get_instance(settings.APP_ENV)
+    map_service._create_new_places_from_results = MagicMock()
+    crud_place.places = [
+        create_random_place(db, crud_place, place_id=str(i), location_id=i)
+        for i in range(3)
+    ]
+    crud.place.get_by_place_ids = MagicMock(return_value=crud_place.list)
+
+    not_existing_places = [
+        create_random_place(db, crud_place, place_id=str(i), location_id=i).model_dump()
+        for i in range(3, 6)
+    ]
+    new_places = [
+        create_random_place(db, crud_place, place_id=str(i), location_id=i)
+        for i in range(3, 6)
+    ]
+    map_service._create_new_places_from_results.return_value = new_places
+    result = map_service.create_or_get_places(
+        db, not_existing_places, [i for i in range(3)]
+    )
+
+    assert len(result) == 6
+    assert len(crud_place.places) == 6
 
 
 def test_get_lat_lng_from_address(map_service: MapServices, db, normal_user):
@@ -49,26 +139,6 @@ def test_get_lat_lng_from_address_no_result(map_service: MapServices, db, normal
 
     with pytest.raises(ZeroResultException):
         map_service.get_lat_lng_from_address(db, normal_user, "test")
-
-
-@pytest.mark.parametrize("db", [MagicMock()])
-def test_create_or_get_location_existing(map_service: MapServices, db, normal_user):
-    db.query().filter().first.return_value = mock_location
-
-    result = map_service.create_or_get_location(db, mock_geocode_response[0])
-
-    assert result == mock_location
-
-
-@pytest.mark.parametrize("db", [MagicMock()])
-def test_create_or_get_location_new(map_service: MapServices, db):
-    db.query().filter().first.return_value = None
-    crud.location.create = MagicMock(return_value=mock_location)
-
-    result = map_service.create_or_get_location(db, mock_geocode_response[0])
-
-    assert result == mock_location
-    crud.location.create.assert_called()  # 생성 메서드가 호출되었는지 확인
 
 
 def test_get_distance_matrix_for_places_one_destination(map_service, db, normal_user):

@@ -3,7 +3,6 @@ from typing import List
 
 from sqlalchemy.orm import Session
 
-from app import crud
 from app.models.place import PlaceType
 from app.schemas.google_maps_api import DistanceInfo, GeocodeResponse, UserPreferences
 from app.schemas.location import Location, LocationCreate
@@ -79,9 +78,11 @@ location_in = {
 }
 
 
-def create_random_location(db: Session):
-    latitude = randint(10, 1000)
-    longitude = randint(10, 1000)
+def create_random_location(
+    db: Session, crud_location=None, latitude=None, longitude=None
+):
+    latitude = latitude or randint(10, 1000)
+    longitude = longitude or randint(10, 1000)
     compound_code = f"compound_code_{random_lower_string()}"
     global_code = f"global_code_{random_lower_string()}"
     location_in = LocationCreate(
@@ -91,7 +92,7 @@ def create_random_location(db: Session):
         global_code=global_code,
     )
 
-    return crud.location.create(db, obj_in=location_in)
+    return crud_location.create(db, obj_in=location_in)
 
 
 def create_random_place(
@@ -108,7 +109,7 @@ def create_random_place(
     address = address or f"Test Address {random_lower_string()}"
     user_ratings_total = randint(1, 1000)
     rating = randint(1, 5)
-    location_id = location_id or create_random_location(db).id
+    location_id = location_id
     place_types = types or ["cafe"]
     place_in = PlaceCreate(
         place_id=place_id,

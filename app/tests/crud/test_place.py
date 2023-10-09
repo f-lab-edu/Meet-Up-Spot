@@ -63,3 +63,44 @@ def test_convert_strings_to_place_types(db: Session, settings: AppSettings):
     assert type(types[0]) == PlaceType
     assert types[0].type_name == place_types[0]
     assert types[1].type_name == place_types[1]
+
+
+def test_bulk_insert(db: Session, settings: AppSettings):
+    crud_place = CRUDPlaceFactory.get_instance(settings.APP_ENV, False)
+
+    place_list = [
+        {
+            "name": "Test Place 1",
+            "address": "Test 1",
+            "place_id": "1",
+            "place_types": ["cafe", "museum"],
+        },
+        {
+            "name": "Test Place 2",
+            "address": "Test 2",
+            "place_id": "2",
+            "place_types": ["cafe", "park"],
+        },
+        {
+            "name": "Test Place 3",
+            "address": "Test 3",
+            "place_id": "3",
+            "place_types": ["cafe", "restaurant"],
+        },
+        {
+            "name": "Test Place 4",
+            "address": "Test 4",
+            "place_id": "4",
+            "place_types": ["cafe", "restaurant"],
+        },
+        {
+            "name": "Test Place 5",
+            "address": "Test 5",
+            "place_id": "5",
+            "place_types": ["market"],
+        },
+    ]
+
+    crud_place.bulk_insert(db, place_list)
+
+    assert len(crud_place.get_multi(db)) == 5

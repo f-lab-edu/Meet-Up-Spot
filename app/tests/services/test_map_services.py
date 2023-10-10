@@ -23,19 +23,23 @@ def test_create_or_get_locations_all_existing(
 ):
     crud_location = CRUDLocationFactory.get_instance(settings.APP_ENV)
     map_service._create_new_locations_from_result = MagicMock()
-    map_service._extract_lat_lngs_from_results = MagicMock()
-
     for i in range(3):
         create_random_location(db, crud_location, latitude=i + 1, longitude=i + 1)
-
-    map_service._extract_lat_lngs_from_results.return_value = [
-        (i + 1, i + 1) for i in range(3)
+    results_with_geometry = [
+        {
+            "geometry": {"location": {"lat": i + 1, "lng": i + 1}},
+        }
+        for i in range(3)
     ]
+
+    map_service._extract_lat_lngs_from_results = MagicMock(
+        return_value=[(i + 1, i + 1) for i in range(3)]
+    )
 
     crud.location.get_by_latlng_list = MagicMock(return_value=crud_location.list)
 
     map_service._create_new_locations_from_result.return_value = []
-    result = map_service.create_or_get_locations(db, crud_location.locations)
+    result = map_service.create_or_get_locations(db, results_with_geometry)
 
     assert len(result) == 3
     assert len(crud_location.locations) == 3
@@ -51,6 +55,13 @@ def test_create_or_get_locations_not_existing(
     for i in range(3):
         create_random_location(db, crud_location, latitude=i + 1, longitude=i + 1)
 
+    results_with_geometry = [
+        {
+            "geometry": {"location": {"lat": i + 1, "lng": i + 1}},
+        }
+        for i in range(3)
+    ]
+
     map_service._extract_lat_lngs_from_results.return_value = [
         (i + 1, i + 1) for i in range(3)
     ]
@@ -62,7 +73,7 @@ def test_create_or_get_locations_not_existing(
         for i in range(3)
     ]
     map_service._create_new_locations_from_result.return_value = new_locations
-    result = map_service.create_or_get_locations(db, crud_location.locations)
+    result = map_service.create_or_get_locations(db, results_with_geometry)
 
     assert len(result) == 6
     assert len(crud_location.locations) == 6

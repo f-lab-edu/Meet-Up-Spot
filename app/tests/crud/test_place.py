@@ -58,15 +58,19 @@ def test_update_place_types(db: Session, settings: AppSettings):
 def test_convert_strings_to_place_types(db: Session, settings: AppSettings):
     place_types = ["cafe", "restaurant"]
     crud_place = CRUDPlaceFactory.get_instance(settings.APP_ENV, False)
-    types = crud_place.convert_strings_to_place_types(db, place_types)
-    assert len(types) == 2
-    assert type(types[0]) == PlaceType
-    assert types[0].type_name == place_types[0]
-    assert types[1].type_name == place_types[1]
+    existing_types, new_types = crud_place.convert_strings_to_place_types(
+        db, place_types
+    )
+    combined_types = existing_types + new_types
+    assert len(combined_types) == 2
+    assert type(combined_types[0]) == PlaceType
+    assert combined_types[0].type_name == place_types[0]
+    assert combined_types[1].type_name == place_types[1]
 
 
 def test_bulk_insert(db: Session, settings: AppSettings):
     crud_place = CRUDPlaceFactory.get_instance(settings.APP_ENV, False)
+    origin_length = len(crud_place.get_multi(db))
 
     place_list = [
         {
@@ -103,4 +107,4 @@ def test_bulk_insert(db: Session, settings: AppSettings):
 
     crud_place.bulk_insert(db, place_list)
 
-    assert len(crud_place.get_multi(db)) == 5
+    assert len(crud_place.get_multi(db)) == origin_length + len(place_list)

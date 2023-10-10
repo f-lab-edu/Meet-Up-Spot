@@ -158,7 +158,7 @@ class Recommender:
 
         return score
 
-    def recommend_places(
+    def recommend_places_by_address(
         self,
         db: Session,
         addresses: List[str],
@@ -173,6 +173,19 @@ class Recommender:
                 addresses, self.user_preferences.place_type
             )
         return self.rank_candidates(candidates, addresses=addresses)
+
+    def recommend_places_by_location(
+        self, db: Session, latitude: float, longitude: float
+    ) -> List[Place]:
+        candidates = self.map_services.get_nearby_places(
+            self.db,
+            self.user,
+            latitude,
+            longitude,
+            place_type=self.user_preferences.place_type,
+            radius=Radius.THIRD_RADIUS.value,
+        )
+        return self.rank_candidates(candidates, addresses=[f"{latitude},{longitude}"])
 
     def rank_candidates(
         self,

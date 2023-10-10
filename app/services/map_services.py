@@ -151,7 +151,11 @@ class MapAdapter:
         **kwargs,
     ) -> List[DistanceInfo]:
         origins = kwargs["origins"]
-        destinations = kwargs["destinations"]
+        destinations = (
+            kwargs["destinations"]
+            if isinstance(kwargs["destinations"], list)
+            else [kwargs["destinations"]]
+        )
         mode: TravelMode = kwargs["mode"]
         language = kwargs["language"]
         is_place_id = kwargs["is_place_id"]

@@ -1,6 +1,7 @@
 ENV_FILE ?= test.env
 DOCKER_COMPOSE_TEST = docker-compose -f ./testing.yml
 PIPENV_RUN = PIPENV_DOTENV_LOCATION=$(ENV_FILE) pipenv run
+PYTHONPATH_SETTING = export PYTHONPATH=./:$$PYTHONPATH;
 
 .PHONY: build test_in_actions test_mark test_one run_pgadmin first_user meet-build meet-up meet-down meet-initial_data
 
@@ -26,7 +27,7 @@ test_mark: prepare_db test_common
 
 test_one: prepare_db
 	$(DOCKER_COMPOSE_TEST) up test-db -d
-	-$(PIPENV_RUN) pytest -s -v ${test-path}
+	-$(PYTHONPATH_SETTING) $(PIPENV_RUN) pytest -s -v ${test-path}
 	$(DOCKER_COMPOSE_TEST) down
 
 run_pgadmin:

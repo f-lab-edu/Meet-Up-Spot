@@ -161,3 +161,22 @@ def update_user(
         )
     user = crud.user.update(db, db_obj=user, obj_in=user_in)
     return user
+
+
+@router.get("/{user_id}/location", response_model=schemas.Msg)
+def add_to_user_location_history(
+    latitude: float,
+    longitude: float,
+    current_user: models.User = Depends(user_service.get_current_active_user),
+    db: Session = Depends(deps.get_db),
+) -> Any:
+    """
+    Add to user location history
+    """
+    if not current_user:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail="The user with this username does not exist in the system",
+        )
+    crud.user.add_to_location_history(db, current_user, latitude, longitude)
+    return {"msg": "Successfully added to user location history"}

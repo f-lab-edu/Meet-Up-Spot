@@ -6,11 +6,14 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app import crud
 from app.api.deps import get_db
 from app.core.config import get_app_settings
 from app.core.settings.app import AppSettings
 from app.db.base import Base
 from app.db.session import SessionLocal
+from app.models.user import User
+from app.services import user_service
 from app.services.map_services import MapServices
 from app.tests.utils.user import authentication_token_from_email
 from app.tests.utils.utils import get_superuser_token_headers

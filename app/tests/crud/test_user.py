@@ -4,9 +4,10 @@ from sqlalchemy.orm import Session
 from app import crud
 from app.core.security import verify_password
 from app.core.settings.app import AppSettings
+from app.crud.crud_location import CRUDLocationFactory
 from app.crud.crud_place import CRUDPlaceFactory
 from app.schemas.user import UserCreate, UserUpdate
-from app.tests.utils.places import create_random_place
+from app.tests.utils.places import create_random_location, create_random_place
 from app.tests.utils.utils import random_email, random_lower_string
 
 
@@ -150,4 +151,24 @@ def test_add_search_history(db: Session, normal_user, settings: AppSettings) -> 
     db.delete(normal_user)
     db.commit()
     db.delete(place)
+    db.commit()
+
+
+def test_add_location_history(db: Session, normal_user, settings: AppSettings) -> None:
+    crud_location = CRUDLocationFactory.get_instance(settings.APP_ENV, False)
+
+    location = create_random_location(db, crud_location)
+    crud.user.add_location_history(
+        db, normal_user, location.latitude, location.longitude
+    )
+    if not normal_user.location_history:
+        normal_user.location_history.append(location)
+        db.add(normal_user)
+        db.commit()
+    assert len(normal_user.location_history) == 1
+    assert location.latitude == normal_user.latest_location.latitude
+    assert location.longitude == normal_user.latest_location.longitude
+    db.delete(normal_user)
+    db.commit()
+    db.delete(location)
     db.commit()

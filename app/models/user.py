@@ -5,7 +5,11 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
 from app.db.base_class import Base
-from app.models.associations import user_interested_place_association
+from app.models import Location
+from app.models.associations import (
+    user_current_location_association,
+    user_interested_place_association,
+)
 
 
 class User(Base):
@@ -22,6 +26,10 @@ class User(Base):
     )
     search_history_relations = relationship("UserSearchHistory", back_populates="user")
 
+    location_history = relationship(
+        "Location", secondary=user_current_location_association, back_populates="users"
+    )
+
     @property
     def preferred_types(self):
         types_from_interested = {
@@ -33,3 +41,7 @@ class User(Base):
     @property
     def searched_addresses(self):
         return [relation.address for relation in self.search_history_relations]
+
+    @property
+    def latest_location(self) -> Location:
+        return self.location_history[-1] if self.location_history else None

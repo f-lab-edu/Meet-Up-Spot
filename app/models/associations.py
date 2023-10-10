@@ -27,3 +27,11 @@ class UserSearchHistory(Base):
     address = Column(String(255), nullable=False)
 
     user = relationship("User", back_populates="search_history_relations")
+
+
+user_current_location_association = Table(
+    "user_current_location_association",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("user.id", ondelete="CASCADE")),
+    Column("location_id", Integer, ForeignKey("location.id", ondelete="CASCADE")),
+)

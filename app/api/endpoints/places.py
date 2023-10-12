@@ -10,6 +10,7 @@ from app.api.deps import get_db
 from app.core import settings
 from app.core.config import get_app_settings
 from app.schemas.google_maps_api import DistanceInfo, UserPreferences
+from app.schemas.location import LocationBase
 from app.schemas.msg import Msg
 from app.schemas.place import AutoCompletedPlace, Place
 from app.services import user_service
@@ -26,9 +27,8 @@ map_services = MapServices(
 )
 
 
-# TODO: 중간장소 계산만 하는 엔드포인트랑 나눠야함 밑에 여기는 추천만 하는거
-@router.post("/request-places/", response_model=List[Place])
-def request_places(
+@router.post("/recommendations/by-address", response_model=List[Place])
+def recommend_places_based_on_requested_address(
     addresses: List[str],
     place_type: PLACETYPE = PLACETYPE.CAFE,
     max_results: int = 5,
@@ -55,9 +55,57 @@ def request_places(
         )
 
         crud.user.add_search_history(db, current_user, complete_addresses)
-        results: List[Place] = recommend_services.recommend_places(
+        results: List[Place] = recommend_services.recommend_places_by_address(
             db,
             complete_addresses,
+        )
+
+        return results
+    except Exception as error:
+        if isinstance(error, ZeroResultException):
+            error_msg = error.args[0]["detail"]
+            raise HTTPException(status_code=HTTPStatus.NO_CONTENT, detail=error_msg)
+        else:
+            raise HTTPException(status_code=404, detail=f"An error occurred: {error}")
+
+
+@router.post("/recommendations/by-location", response_model=List[Place])
+def recommend_places_based_on_current_location(
+    location: LocationBase,
+    place_type: PLACETYPE = PLACETYPE.CAFE,
+    max_results: int = 5,
+    filter_condition: AGGREGATED_ATTR = AGGREGATED_ATTR.DISTANCE,
+    current_user: models.User = Depends(user_service.get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Recommend places based on user's current location.
+    """
+    try:
+        if not current_user.latest_location or (
+            current_user.latest_location.latitude != location.latitude
+            or current_user.latest_location.longitude != location.longitude
+        ):
+            crud.user.add_location_history(
+                db, current_user, location.latitude, location.longitude
+            )
+
+        # NOTE: 여기서는 유저 위치 기반으로 일반적인 추천을 하기 떄문에 검색에는 추가하지 않음
+        recommend_services = Recommender(
+            db,
+            current_user,
+            map_services,
+            UserPreferences(
+                place_type=place_type,
+                return_count=max_results,
+                filter_condition=filter_condition,
+            ),
+        )
+
+        results: List[Place] = recommend_services.recommend_places_by_location(
+            db,
+            location.latitude,
+            location.longitude,
         )
 
         return results

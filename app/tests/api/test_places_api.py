@@ -1,24 +1,26 @@
 from typing import Dict
-from unittest.mock import ANY, create_autospec, patch
+from unittest.mock import ANY, MagicMock, create_autospec, patch
 
 from fastapi.encoders import jsonable_encoder
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app import crud
 from app.core.settings.app import AppSettings
-from app.services.constants import PLACETYPE, TravelMode
+from app.services.constants import PLACETYPE
 from app.services.recommend_services import Recommender
 from app.tests.utils.places import (
     auto_completed_place_schema,
     distance_info_list,
     mock_geocode_response,
+    mock_location,
     mock_place_obj,
     places_list,
     test_address,
 )
 
 
-def test_request_places(
+def test_recommend_places_based_on_requested_address(
     client: TestClient,
     db: Session,
     normal_user,
@@ -26,7 +28,7 @@ def test_request_places(
     normal_user_token_headers,
 ):
     mock_recommender = create_autospec(Recommender)
-    mock_recommender.recommend_places.return_value = [mock_place_obj]
+    mock_recommender.recommend_places_by_address.return_value = [mock_place_obj]
 
     with patch(
         "app.api.endpoints.places.map_services.get_complete_addresses",
@@ -35,7 +37,7 @@ def test_request_places(
         "app.api.endpoints.places.Recommender", return_value=mock_recommender
     ):
         response = client.post(
-            f"{settings.API_V1_STR}/places/request-places/",
+            f"{settings.API_V1_STR}/places/recommendations/by-address",
             json=[test_address],
             headers=normal_user_token_headers,
             params={"place_type": PLACETYPE.CAFE.value, "max_results": 5},
@@ -44,11 +46,63 @@ def test_request_places(
         assert response.status_code == 200
         assert response.json() == [mock_place_obj.model_dump()]
 
-        # get_complete_addresses가 한 번 호출되었는지 확인합니다.
         mock_get_complete.assert_called_once()
 
-        # recommend_places 메소드가 한 번 호출되었는지 확인합니다.
-        mock_recommender.recommend_places.assert_called_once()
+        mock_recommender.recommend_places_by_address.assert_called_once()
+
+
+def test_recommend_places_based_on_current_location_with_latest_location(
+    client: TestClient,
+    db: Session,
+    settings: AppSettings,
+    normal_user_token_headers,
+):
+    current_user = crud.user.get_by_email(
+        db,
+        email=settings.EMAIL_TEST_USER,
+    )
+    mock_recommender = create_autospec(Recommender)
+    mock_recommender.recommend_places_by_location.return_value = [mock_place_obj]
+
+    with patch("app.api.endpoints.places.Recommender", return_value=mock_recommender):
+        response = client.post(
+            f"{settings.API_V1_STR}/places/recommendations/by-location",
+            json={"latitude": 127.0, "longitude": 32.0},
+            headers=normal_user_token_headers,
+            params={"place_type": PLACETYPE.CAFE.value, "max_results": 5},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == [mock_place_obj.model_dump()]
+        assert current_user.latest_location.latitude == 127.0
+        assert current_user.latest_location.longitude == 32.0
+
+        mock_recommender.recommend_places_by_location.assert_called_once()
+
+
+def test_recommend_places_based_on_current_location_without_latest_location(
+    client: TestClient,
+    db: Session,
+    settings: AppSettings,
+    normal_user_token_headers,
+):
+    mock_recommender = create_autospec(Recommender)
+    mock_recommender.recommend_places_by_location.return_value = [mock_place_obj]
+    crud.user.add_location_history = MagicMock()
+    with patch("app.api.endpoints.places.Recommender", return_value=mock_recommender):
+        response = client.post(
+            f"{settings.API_V1_STR}/places/recommendations/by-location",
+            json={"latitude": 31.0, "longitude": 127.0},
+            headers=normal_user_token_headers,
+            params={"place_type": PLACETYPE.CAFE.value, "max_results": 5},
+        )
+
+        assert response.status_code == 200
+
+        assert response.json() == [mock_place_obj.model_dump()]
+        crud.user.add_location_history.assert_called_once()
+
+        mock_recommender.recommend_places_by_location.assert_called_once()
 
 
 def test_read_place_by_id(

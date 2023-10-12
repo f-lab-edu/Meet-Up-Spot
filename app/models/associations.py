@@ -16,7 +16,7 @@ user_interested_place_association = Table(
 place_type_association = Table(
     "place_type_association",
     Base.metadata,
-    Column("place_id", Integer, ForeignKey("place.id", ondelete="CASCADE")),
+    Column("place_id", String(255), ForeignKey("place.place_id", ondelete="CASCADE")),
     Column("place_type_id", Integer, ForeignKey("placetype.id", ondelete="CASCADE")),
 )
 
@@ -27,3 +27,11 @@ class UserSearchHistory(Base):
     address = Column(String(255), nullable=False)
 
     user = relationship("User", back_populates="search_history_relations")
+
+
+user_current_location_association = Table(
+    "user_current_location_association",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("user.id", ondelete="CASCADE")),
+    Column("location_id", Integer, ForeignKey("location.id", ondelete="CASCADE")),
+)

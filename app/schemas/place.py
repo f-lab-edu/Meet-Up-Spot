@@ -11,6 +11,7 @@ class PlaceBase(BaseModel):
     user_ratings_total: int | None = None
     rating: float | None = None
     place_types: List[str] | None = None
+    location_id: int | None = None
 
     def __eq__(self, other):
         if isinstance(other, PlaceBase):

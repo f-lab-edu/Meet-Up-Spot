@@ -8,6 +8,14 @@ class LocationBase(BaseModel):
     latitude: float
     longitude: float
 
+    def __eq__(self, other):
+        if isinstance(other, LocationBase):
+            return self.latitude == other.latitude and self.longitude == other.longitude
+        return False
+
+    def __hash__(self):
+        return hash((self.latitude, self.longitude))
+
 
 # Properties to receive via API on creation
 class LocationCreate(LocationBase):

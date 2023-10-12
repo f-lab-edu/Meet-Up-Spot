@@ -18,6 +18,7 @@ class Place(Base):
     rating = Column(Float, default=0.0)
     user_ratings_total = Column(Integer, default=0)
     user_id = Column(Integer, ForeignKey("user.id"))
+    location_id = Column(Integer, ForeignKey("location.id"))
 
     users = relationship(
         "User",
@@ -27,6 +28,7 @@ class Place(Base):
     place_types = relationship(
         "PlaceType", secondary=place_type_association, back_populates="places"
     )
+    location = relationship("Location", back_populates="places")
 
 
 class PlaceType(Base):

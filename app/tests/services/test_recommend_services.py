@@ -61,7 +61,7 @@ def test_recommend_places_many_address(db, map_service, normal_user):
     ranked_candidates = [MagicMock(spec=Place), MagicMock(spec=Place)]
     recommender.rank_candidates.return_value = ranked_candidates
 
-    result = recommender.recommend_places(db, addresses)
+    result = recommender.recommend_places_by_address(db, addresses)
 
     assert result == ranked_candidates
     recommender.candidate_fetcher.fetch_by_midpoint.assert_called_once_with(
@@ -83,13 +83,36 @@ def test_recommend_places_one_address(db, map_service, normal_user):
     ranked_candidates = [MagicMock(spec=Place)]
     recommender.rank_candidates.return_value = ranked_candidates
 
-    result = recommender.recommend_places(db, addresses)
+    result = recommender.recommend_places_by_address(db, addresses)
 
     assert result == ranked_candidates
     recommender.candidate_fetcher.fetch_by_address.assert_called_once_with(
         addresses[0], user_preferences.place_type
     )
     recommender.rank_candidates.assert_called_once_with(candidates, addresses=addresses)
+
+
+def test_recommend_places_by_location(db, map_service, normal_user):
+    recommender = Recommender(db, normal_user, map_service, user_preferences)
+
+    map_service.get_nearby_places = MagicMock()
+    recommender.rank_candidates = MagicMock()
+
+    latitude = 37.0
+    longitude = 127.0
+    candidates = [MagicMock(spec=Place), MagicMock(spec=Place)]
+
+    ranked_candidates = [MagicMock(spec=Place)]
+    recommender.rank_candidates.return_value = ranked_candidates
+    map_service.get_nearby_places.return_value = candidates
+
+    result = recommender.recommend_places_by_location(db, latitude, longitude)
+
+    assert result == ranked_candidates
+
+    recommender.rank_candidates.assert_called_once_with(
+        candidates, addresses=[f"{latitude},{longitude}"]
+    )
 
 
 def test_compute_recentness_weight_over_7days(

@@ -1,6 +1,5 @@
 from sqlalchemy.orm import Session
 
-from app import crud
 from app.core.settings.app import AppSettings
 from app.crud.crud_place import CRUDPlaceFactory
 from app.models.place import PlaceType
@@ -66,6 +65,52 @@ def test_convert_strings_to_place_types(db: Session, settings: AppSettings):
     assert type(combined_types[0]) == PlaceType
     assert combined_types[0].type_name == place_types[0]
     assert combined_types[1].type_name == place_types[1]
+
+
+def test_process_place_types(db: Session, settings: AppSettings):
+    crud_place = CRUDPlaceFactory.get_instance(settings.APP_ENV, False)
+
+    place_list = [
+        {
+            "name": "Test Place 1",
+            "address": "Test 1",
+            "place_id": "1",
+            "place_types": ["cafe", "museum"],
+        },
+        {
+            "name": "Test Place 2",
+            "address": "Test 2",
+            "place_id": "2",
+            "place_types": ["cafe", "park"],
+        },
+        {
+            "name": "Test Place 3",
+            "address": "Test 3",
+            "place_id": "3",
+            "place_types": ["cafe", "restaurant"],
+        },
+        {
+            "name": "Test Place 4",
+            "address": "Test 4",
+            "place_id": "4",
+            "place_types": ["cafe", "restaurant"],
+        },
+        {
+            "name": "Test Place 5",
+            "address": "Test 5",
+            "place_id": "5",
+            "place_types": ["market"],
+        },
+    ]
+
+    combined_types_dict = crud_place.process_place_types(db, place_list)
+    place_types_in_db = db.query(PlaceType).all()
+    assert len(combined_types_dict) == len(place_types_in_db)
+    assert "cafe" in combined_types_dict
+    assert "museum" in combined_types_dict
+    assert "park" in combined_types_dict
+    assert "restaurant" in combined_types_dict
+    assert "market" in combined_types_dict
 
 
 def test_bulk_insert(db: Session, settings: AppSettings):

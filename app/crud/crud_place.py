@@ -37,6 +37,49 @@ class CRUDPlace(CRUDBase[Place, PlaceCreate, PlaceUpdate]):
 
         return existing_types, new_types
 
+    def process_place_types(self, db, place_list):
+        all_place_types = set(
+            place_type for place in place_list for place_type in place["place_types"]
+        )
+
+        existing_types, new_types = self.convert_strings_to_place_types(
+            db, list(all_place_types)
+        )
+
+        db.bulk_insert_mappings(
+            PlaceType, [jsonable_encoder(place_type) for place_type in new_types]
+        )
+        db.flush()
+
+        added_place_types = (
+            db.query(PlaceType)
+            .filter(
+                PlaceType.type_name.in_(
+                    [place_type.type_name for place_type in new_types]
+                )
+            )
+            .all()
+        )
+
+        combined_types_dict = {
+            item.type_name: item for item in existing_types + added_place_types
+        }
+
+        return combined_types_dict
+
+    def _prepare_association_data(self, place_list, combined_types_dict):
+        """Prepare the association data between places and their types."""
+        association_data = []
+        for place in place_list:
+            for place_type in place["place_types"]:
+                association_data.append(
+                    {
+                        "place_id": place["place_id"],
+                        "place_type_id": combined_types_dict[place_type].id,
+                    }
+                )
+        return association_data
+
     def create(self, db: Session, *, obj_in: PlaceCreate) -> Place:
         db_obj = Place(
             place_id=obj_in.place_id,
@@ -72,47 +115,14 @@ class CRUDPlace(CRUDBase[Place, PlaceCreate, PlaceUpdate]):
         return super().update(db, db_obj=db_obj, obj_in=update_data)
 
     def bulk_insert(self, db, place_list: List[dict]):
-        all_place_types = set(
-            place_type for place in place_list for place_type in place["place_types"]
-        )
-
-        # 기존에 있는 place_types와 새롭게 추가되어야 할 place_types를 구분합니다.
-        existing_types, new_types = self.convert_strings_to_place_types(
-            db, list(all_place_types)
-        )
-
-        db.bulk_insert_mappings(
-            PlaceType, [jsonable_encoder(place_type) for place_type in new_types]
-        )
-        db.flush()
-
-        added_place_types = (
-            db.query(PlaceType)
-            .filter(
-                PlaceType.type_name.in_(
-                    [place_type.type_name for place_type in new_types]
-                )
-            )
-            .all()
-        )
-
-        combined_types_dict = {
-            item.type_name: item for item in existing_types + added_place_types
-        }
+        combined_types_dict = self.process_place_types(db, place_list)
 
         db.bulk_insert_mappings(Place, place_list)
 
-        association_data = []
-        for place in place_list:
-            for place_type in place["place_types"]:
-                association_data.append(
-                    {
-                        "place_id": place["place_id"],
-                        "place_type_id": combined_types_dict[place_type].id,
-                    }
-                )
+        association_data = self._prepare_association_data(
+            place_list, combined_types_dict
+        )
 
-        # 관계 테이블에 데이터를 삽입합니다.
         db.execute(place_type_association.insert(), association_data)
         db.commit()
 

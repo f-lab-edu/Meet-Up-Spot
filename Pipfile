@@ -28,6 +28,8 @@ googlemaps = "*"
 bcrypt = "*"
 pytest-xdist = "*"
 pytz = "*"
+redis = "*"
+geohash2 = "*"
 
 [dev-packages]
 pytest-cov = "*"

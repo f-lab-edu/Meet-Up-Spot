@@ -21,6 +21,19 @@ services:
     env_file:
       - test.env
 
+  test-redis:
+    image: redis:latest
+    command: redis-server
+    ports:
+      - "6378:6379"
+    volumes:
+      - test-redis-data:/data
+    environment:
+      - ALLOW_EMPTY_PASSWORD=no
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    networks:
+      - mynetwork
+
   test-web:
     build: .
     command: bash -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
@@ -28,6 +41,7 @@ services:
       - "8000:8000"
     depends_on:
       - test-db
+      - test-redis
     environment:
       - DATABASE_URL=postgresql+psycopg2://postgres:DO_NOT_USE_THIS_PASSWORD_IN_PRODUCTION@test-db:5433/test_db
       - SMTP_HOST=smtp.gmail.com
@@ -53,6 +67,7 @@ services:
 
 volumes:
   test-db-data:
+  test-redis-data:
 
 networks:
   mynetwork:

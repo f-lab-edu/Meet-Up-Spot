@@ -59,6 +59,10 @@ class AppSettings(BaseAppSettings):
 
     DATABASE_URL: str = "postgresql+psycopg2://postgres:DO_NOT_USE_THIS_PASSWORD_IN_PRODUCTION@localhost:5432/test_db"
 
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_PASSWORD: Optional[str] = "DO_NOT_USE_THIS_PASSWORD_IN_PRODUCTION"
+
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def assemble_db_connection(cls, v: Optional[str], values: ValidationInfo) -> Any:

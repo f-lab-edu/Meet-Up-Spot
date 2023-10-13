@@ -21,6 +21,21 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_HOST=${POSTGRES_HOST}
       
+  redis:
+    image: redis:latest
+    command: redis-server
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    environment:
+      - ALLOW_EMPTY_PASSWORD=no
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    env_file:
+      - .env
+    
+    
+
   web:
     build: .
     command: bash -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
@@ -28,6 +43,7 @@ services:
       - "8000:8000"
     depends_on:
       - db
+      - redis
     env_file:
       - .env
     volumes:
@@ -42,7 +58,7 @@ services:
       - SMTP_PORT=${SMTP_PORT}
       - SMTP_USER=${SMTP_USER}
       - SMTP_PASSWORD=${SMTP_PASSWORD}
-
+    
   pgadmin:
     container_name: pgadmin
     image: dpage/pgadmin4
@@ -58,6 +74,7 @@ services:
 
 volumes:
   app-db-data:
+  redis-data:
 
 networks:
   mynetwork:

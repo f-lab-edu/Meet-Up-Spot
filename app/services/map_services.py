@@ -27,6 +27,7 @@ from app.services.constants import (
     StatusDetail,
     TravelMode,
 )
+from app.services.redis_services import RedisServicesFactory
 
 settings = get_app_settings()
 
@@ -295,7 +296,7 @@ class MapServices:
 
         return existing_places + new_places
 
-    def _process_nearby_places_results(
+    def process_nearby_places_results(
         self, db: Session, user: User, results: List[dict]
     ) -> List[Place]:
         locations = self.create_or_get_locations(db, results)
@@ -331,14 +332,16 @@ class MapServices:
         user: User,
         latitude: float,
         longitude: float,
-        radius=1000,
+        radius=Radius.FIRST_RADIUS.value,
         language="ko",
         place_type=PLACETYPE.TRANSIT_STATION,
     ) -> List[Place]:
         """
         주변 지역 검색 API 요청
         """
-        response = self.map_adapter.search_nearby_places(
+        redis_services = RedisServicesFactory.create_redis_services()
+
+        response = self._map_adapter.search_nearby_places(
             db,
             user,
             latitude,
@@ -349,7 +352,14 @@ class MapServices:
         )
         results = response["results"]
 
-        return self._process_nearby_places_results(db, user, results)
+        if redis_services.cache_nearby_places_response(latitude, longitude, results):
+            logger.info(
+                "Successfully cached search_nearby_places API response in Redis."
+            )
+        if redis_services.add_location_to_redis(latitude, longitude):
+            logger.info("Successfully cached geolocation in Redis.")
+
+        return self.process_nearby_places_results(db, user, results)
 
     def get_complete_addresses(
         self, db: Session, user: User, addresses: List[str]

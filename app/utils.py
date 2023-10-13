@@ -6,6 +6,7 @@ from email.mime.text import MIMEText
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+import geohash2
 from fastapi import Depends
 from jinja2 import Environment, FileSystemLoader
 from jose import jwt
@@ -127,3 +128,11 @@ def parsed_email_password_reset_token(
         return decoded_token["email"]
     except jwt.JWTError:
         return None
+
+
+def geohash_encode(latitude: float, longitude: float, precision=5) -> str:
+    return geohash2.encode(latitude, longitude, precision)
+
+
+def geohash_decode(geohash: str):
+    return geohash2.decode(geohash)

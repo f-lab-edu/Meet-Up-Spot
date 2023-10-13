@@ -209,6 +209,10 @@ class MapServices:
         self._map_adapter = MapAdapter(map_client)
         self.max_results = 20
 
+    @property
+    def map_adapter(self):
+        return self._map_adapter
+
     def _extract_lat_lngs_from_results(self, results):
         return [
             (res["geometry"]["location"]["lat"], res["geometry"]["location"]["lng"])

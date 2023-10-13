@@ -33,6 +33,10 @@ class RedisServices:
     def __init__(self, redis_client: redis.Redis):
         self._redis_client = redis_client
 
+    @property
+    def redis_client(self) -> redis.Redis:
+        return self._redis_client
+
     def add_location_to_redis(self, latitude: float, longitude: float) -> bool:
         try:
             location_geohash = geohash_encode(latitude, longitude)

@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from difflib import SequenceMatcher
 from typing import List, Tuple
@@ -8,21 +9,32 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from app.schemas.google_maps_api import GeocodeResponse, UserPreferences
 from app.schemas.place import Place
-from app.services.constants import PLACETYPE, Radius
+from app.services.constants import PLACETYPE, REDIS_SEARCH_RADIUS, Radius
 from app.services.filters_services import DistanceInfoFilter
 from app.services.map_services import MapServices
+from app.services.redis_services import RedisServicesFactory
 from app.services.routes_matrix_services import RoutesMatrix
 
 from .midpoint_services import calculate_midpoint_from_addresses, harversine_distance
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 class CandidateFetcher:
-    def __init__(self, db: Session, user: User, map_services: MapServices):
+    def __init__(
+        self, db: Session, user: User, map_services: MapServices, redis_services=None
+    ):
         self.map_services = map_services
         self.user = user
         self.db = db
+        self.redis_services = (
+            RedisServicesFactory.create_redis_services()
+            if not redis_services
+            else redis_services
+        )
 
-    def decide_radius(self, geocoded_addresses: List[GeocodeResponse]):
+    def decide_api_radius(self, geocoded_addresses: List[GeocodeResponse]):
         maximum_distance = 0
         length = len(geocoded_addresses)
         for i in range(length):
@@ -37,6 +49,47 @@ class CandidateFetcher:
                 return Radius.THIRD_RADIUS.value
         return maximum_distance // 2
 
+    def _get_cached_places(self, latitude, longitude, redis_search_radius):
+        places = []
+        geohashes_in_radius = self.redis_services.find_geohashes_in_radius(
+            latitude, longitude, redis_search_radius
+        )
+
+        cached_api_responses = self.redis_services.get_cached_nearby_places_responses(
+            geohashes_in_radius
+        )
+
+        if cached_api_responses:
+            logger.info("Found cached nearby places responses.")
+            for cached_api_response in cached_api_responses:
+                places.extend(
+                    self.map_services.process_nearby_places_results(
+                        self.db, self.user, cached_api_response
+                    )
+                )
+        return places
+
+    def fetch_places_by_coordinates(
+        self,
+        latitude,
+        longitude,
+        place_type,
+        api_search_radius=Radius.FIRST_RADIUS.value,
+    ):
+        places = self._get_cached_places(latitude, longitude, REDIS_SEARCH_RADIUS)
+
+        if not places:
+            places = self.map_services.get_nearby_places(
+                self.db,
+                self.user,
+                latitude,
+                longitude,
+                place_type=place_type,
+                radius=api_search_radius,
+            )
+
+        return places
+
     def fetch_by_address(self, address: str, place_type: PLACETYPE) -> List[Place]:
         geocoded_address = self.map_services.get_lat_lng_from_address(
             self.db, self.user, address
@@ -44,12 +97,10 @@ class CandidateFetcher:
         if not geocoded_address:
             raise Exception("Failed to geocode address.")
 
-        return self.map_services.get_nearby_places(
-            self.db,
-            self.user,
+        return self.fetch_places_by_coordinates(
             geocoded_address.latitude,
             geocoded_address.longitude,
-            place_type=place_type,
+            place_type,
         )
 
     def fetch_by_midpoint(
@@ -65,13 +116,20 @@ class CandidateFetcher:
         if not midpoint:
             raise Exception("Failed to calculate midpoint.")
 
-        return self.map_services.get_nearby_places(
-            self.db,
-            self.user,
+        return self.fetch_places_by_coordinates(
             midpoint.latitude,
             midpoint.longitude,
-            place_type=place_type,
-            radius=self.decide_radius(geocoded_addresses),
+            place_type,
+            self.decide_api_radius(geocoded_addresses),
+        )
+
+    def fetch_by_location(
+        self, latitude: float, longitude: float, place_type: PLACETYPE
+    ) -> List[Place]:
+        return self.fetch_places_by_coordinates(
+            latitude,
+            longitude,
+            place_type,
         )
 
 
@@ -177,13 +235,8 @@ class Recommender:
     def recommend_places_by_location(
         self, db: Session, latitude: float, longitude: float
     ) -> List[Place]:
-        candidates = self.map_services.get_nearby_places(
-            self.db,
-            self.user,
-            latitude,
-            longitude,
-            place_type=self.user_preferences.place_type,
-            radius=Radius.THIRD_RADIUS.value,
+        candidates = self.candidate_fetcher.fetch_by_location(
+            latitude, longitude, self.user_preferences.place_type
         )
         return self.rank_candidates(candidates, addresses=[f"{latitude},{longitude}"])
 

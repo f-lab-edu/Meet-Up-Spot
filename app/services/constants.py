@@ -102,3 +102,10 @@ class RankBy(Enum):
 class AGGREGATED_ATTR(str, Enum):
     DISTANCE = "distance_value"
     DURATION = "duration_value"
+
+
+class RedisKey(str, Enum):
+    GEOLOCATIONS_KEY = "geolocations"
+
+
+REDIS_SEARCH_RADIUS = 500

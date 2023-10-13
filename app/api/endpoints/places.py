@@ -1,13 +1,11 @@
 from http import HTTPStatus
 from typing import List
 
-import googlemaps
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app import crud, models
-from app.api.deps import get_db
-from app.core import settings
+from app.api.deps import get_db, get_map_services
 from app.core.config import get_app_settings
 from app.schemas.google_maps_api import DistanceInfo, UserPreferences
 from app.schemas.location import LocationBase
@@ -22,10 +20,6 @@ router = APIRouter()
 
 settings = get_app_settings()
 
-map_services = MapServices(
-    map_client=googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
-)
-
 
 @router.post("/recommendations/by-address", response_model=List[Place])
 def recommend_places_based_on_requested_address(
@@ -35,6 +29,7 @@ def recommend_places_based_on_requested_address(
     filter_condition: AGGREGATED_ATTR = AGGREGATED_ATTR.DISTANCE,
     current_user: models.User = Depends(user_service.get_current_active_user),
     db: Session = Depends(get_db),
+    map_services: MapServices = Depends(get_map_services),
 ):
     """
     request meeting places
@@ -66,7 +61,9 @@ def recommend_places_based_on_requested_address(
             error_msg = error.args[0]["detail"]
             raise HTTPException(status_code=HTTPStatus.NO_CONTENT, detail=error_msg)
         else:
-            raise HTTPException(status_code=404, detail=f"An error occurred: {error}")
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND, detail=f"An error occurred: {error}"
+            )
 
 
 @router.post("/recommendations/by-location", response_model=List[Place])
@@ -77,6 +74,7 @@ def recommend_places_based_on_current_location(
     filter_condition: AGGREGATED_ATTR = AGGREGATED_ATTR.DISTANCE,
     current_user: models.User = Depends(user_service.get_current_active_user),
     db: Session = Depends(get_db),
+    map_services: MapServices = Depends(get_map_services),
 ):
     """
     Recommend places based on user's current location.
@@ -114,7 +112,9 @@ def recommend_places_based_on_current_location(
             error_msg = error.args[0]["detail"]
             raise HTTPException(status_code=HTTPStatus.NO_CONTENT, detail=error_msg)
         else:
-            raise HTTPException(status_code=404, detail=f"An error occurred: {error}")
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND, detail=f"An error occurred: {error}"
+            )
 
 
 @router.get("/{place_id}", response_model=Place)
@@ -200,6 +200,7 @@ async def read_auto_completed_places(
     address: str,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(user_service.get_current_active_user),
+    map_services: MapServices = Depends(get_map_services),
 ):
     """
     retrieve some auto completed places
@@ -225,6 +226,7 @@ def get_distance_matrix(
     mode: TravelMode = TravelMode.TRANSIT,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(user_service.get_current_active_user),
+    map_services: MapServices = Depends(get_map_services),
 ) -> List[DistanceInfo]:
     try:
         distances = map_services.get_distance_matrix_for_places(

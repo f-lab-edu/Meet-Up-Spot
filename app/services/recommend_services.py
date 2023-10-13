@@ -123,15 +123,6 @@ class CandidateFetcher:
             self.decide_api_radius(geocoded_addresses),
         )
 
-    def fetch_by_location(
-        self, latitude: float, longitude: float, place_type: PLACETYPE
-    ) -> List[Place]:
-        return self.fetch_places_by_coordinates(
-            latitude,
-            longitude,
-            place_type,
-        )
-
 
 class Recommender:
     def __init__(
@@ -235,7 +226,7 @@ class Recommender:
     def recommend_places_by_location(
         self, db: Session, latitude: float, longitude: float
     ) -> List[Place]:
-        candidates = self.candidate_fetcher.fetch_by_location(
+        candidates = self.candidate_fetcher.fetch_places_by_coordinates(
             latitude, longitude, self.user_preferences.place_type
         )
         return self.rank_candidates(candidates, addresses=[f"{latitude},{longitude}"])

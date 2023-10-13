@@ -203,10 +203,9 @@ class MapAdapter:
 
 
 class MapServices:
-    def __init__(self, map_client=None):
-        if map_client is None:
-            map_client = googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
-        self.map_adapter = MapAdapter(map_client)
+    def __init__(self, map_client):
+        self._map_client = map_client
+        self._map_adapter = MapAdapter(map_client)
         self.max_results = 20
 
     def _extract_lat_lngs_from_results(self, results):
@@ -309,7 +308,7 @@ class MapServices:
     def get_lat_lng_from_address(
         self, db: Session, user: User, address: str
     ) -> GeocodeResponse:
-        results = self.map_adapter.geocode_address(db, user, address)
+        results = self._map_adapter.geocode_address(db, user, address)
 
         location = results[0]["geometry"]["location"]
         return GeocodeResponse(latitude=location["lat"], longitude=location["lng"])
@@ -317,7 +316,7 @@ class MapServices:
     def get_address_from_lat_lng(
         self, db: Session, user: User, latitude: float, longitude: float
     ) -> str:
-        result = self.map_adapter.reverse_geocode(db, user, latitude, longitude)
+        result = self._map_adapter.reverse_geocode(db, user, latitude, longitude)
 
         return ReverseGeocodeResponse(address=result[0]["formatted_address"])
 
@@ -366,7 +365,7 @@ class MapServices:
     def get_auto_completed_place(
         self, db: Session, user: User, text: str
     ) -> List[AutoCompletedPlace]:
-        results = self.map_adapter.auto_complete_place(db, user, text)
+        results = self._map_adapter.auto_complete_place(db, user, text)
 
         return [
             AutoCompletedPlace(
@@ -409,8 +408,16 @@ class MapServices:
             language="ko",
             is_place_id=is_place_id,
         )
-        distances: List[DistanceInfo] = self.map_adapter.calculate_distance_matrix(
+        distances: List[DistanceInfo] = self._map_adapter.calculate_distance_matrix(
             db, user, **asdict(params)
         )
 
         return distances
+
+
+class MapServicesFactory:
+    @staticmethod
+    def create_map_services(map_client=None):
+        if map_client is None:
+            map_client = googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
+        return MapServices(map_client=map_client)

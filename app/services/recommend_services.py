@@ -59,7 +59,7 @@ class CandidateFetcher:
             geohashes_in_radius
         )
 
-        if cached_api_responses:
+        if any(response is not None for response in cached_api_responses):
             logger.info("Found cached nearby places responses.")
             for cached_api_response in cached_api_responses:
                 places.extend(

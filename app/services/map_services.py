@@ -313,9 +313,24 @@ class MapServices:
     def get_lat_lng_from_address(
         self, db: Session, user: User, address: str
     ) -> GeocodeResponse:
+        redis_services = RedisServicesFactory.create_redis_services()
+        cached_coordinates = redis_services.get_cached_address_coordinates(address)
+
+        if cached_coordinates:
+            logger.info("Successfully cached Geocoding API response in Redis.")
+            return GeocodeResponse(
+                latitude=cached_coordinates["latitude"],
+                longitude=cached_coordinates["longitude"],
+            )
+
         results = self._map_adapter.geocode_address(db, user, address)
 
         location = results[0]["geometry"]["location"]
+
+        redis_services.cache_address_coordinates(
+            address, location["lat"], location["lng"]
+        )
+
         return GeocodeResponse(latitude=location["lat"], longitude=location["lng"])
 
     def get_address_from_lat_lng(

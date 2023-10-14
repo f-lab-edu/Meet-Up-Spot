@@ -106,6 +106,7 @@ class AGGREGATED_ATTR(str, Enum):
 
 class RedisKey(str, Enum):
     GEOLOCATIONS_KEY = "geolocations"
+    GEOCODE = "geocode"
 
 
 REDIS_SEARCH_RADIUS = 500

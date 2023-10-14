@@ -6,7 +6,7 @@ import redis
 
 from app.core.config import get_app_settings
 from app.services.constants import RedisKey
-from app.utils import geohash_encode
+from app.utils import geohash_decode, geohash_encode
 
 settings = get_app_settings()
 
@@ -36,6 +36,38 @@ class RedisServices:
     @property
     def redis_client(self) -> redis.Redis:
         return self._redis_client
+
+    def cache_address_coordinates(
+        self, address: str, latitude: float, longitude: float
+    ) -> bool:
+        try:
+            location_geohash = geohash_encode(latitude, longitude, precision=10)
+            print(location_geohash)
+            return (
+                self._redis_client.set(address, location_geohash, ex=3600) > 0
+            )  # 캐시 유효 시간은 1시간으로
+        except redis.RedisError as error:
+            logger.error(
+                f"Error caching address coordinates in Redis: {error}", exc_info=True
+            )
+            raise RedisOperationError("주소 좌표를 Redis에 캐싱하는 요청을 실패했습니다.") from error
+
+    def get_cached_address_coordinates(
+        self, address: str
+    ) -> Optional[Dict[str, float]]:
+        try:
+            location_geohash = self._redis_client.get(address)
+            if location_geohash:
+                latitude, longitude = geohash_decode(location_geohash.decode("utf-8"))
+                print(latitude, longitude)
+                return {"latitude": float(latitude), "longitude": float(longitude)}
+            return None
+        except redis.RedisError as error:
+            logger.error(
+                f"Error retrieving cached address coordinates from Redis: {error}",
+                exc_info=True,
+            )
+            raise RedisOperationError("Redis에서 캐시된 주소 좌표를 검색하는 요청을 실패했습니다.") from error
 
     def add_location_to_redis(self, latitude: float, longitude: float) -> bool:
         try:
@@ -91,7 +123,7 @@ class RedisServices:
                 if item:
                     responses.append(json.loads(item.decode("utf-8")))
                 else:
-                    responses.append(None)
+                    continue
 
             return responses
         except redis.RedisError as error:

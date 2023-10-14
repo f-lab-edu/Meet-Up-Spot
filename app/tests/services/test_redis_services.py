@@ -75,5 +75,36 @@ class RedisServicesTest(TestCase):
         with self.assertRaises(RedisOperationError):
             self.mock_redis_service.get_cached_nearby_places_responses(["123"])
 
+    def test_cache_address_coordinates(self):
+        assert len(self.redis_client.keys("*")) == 0
+        result = self.redis_service.cache_address_coordinates(
+            "판교역", 37.12312, 127.12312
+        )
+        self.assertTrue(result)
+        assert len(self.redis_client.keys("*")) == 1
+        assert self.redis_client.keys("*")[0].decode("utf-8") == "판교역"
+
+    def test_cache_address_coordinates_failure(self):
+        self.mock_redis_client.set.side_effect = RedisOperationError("Some error")
+
+        with self.assertRaises(RedisOperationError):
+            self.mock_redis_service.cache_address_coordinates("판교역", 37.0, 127.0)
+
+    def test_get_cached_address_coordinates(self):
+        self.redis_service.cache_address_coordinates("판교역", 37.394776, 127.11116)
+        assert len(self.redis_client.keys("*")) == 1
+        result1 = self.redis_service.get_cached_address_coordinates("판교역")
+
+        self.assertIsNotNone(result1)
+        self.assertTrue(len(result1) > 0)
+        self.assertTrue(result1["latitude"] == 37.394776)
+        self.assertTrue(result1["longitude"] == 127.11116)
+
+    def test_get_cached_address_coordinates_failure(self):
+        self.mock_redis_client.get.side_effect = RedisOperationError("Some error")
+
+        with self.assertRaises(RedisOperationError):
+            self.mock_redis_service.get_cached_address_coordinates("판교역")
+
     def tearDown(self):
         self.redis_client.flushdb()

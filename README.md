@@ -76,3 +76,17 @@
   
 </details>
 
+## ERD
+
+ 
+``` mermaid
+erDiagram
+User ||--o{ Place : interested_places
+    Place ||--o{ PlaceType : place_types
+    Location ||--o{Place:places
+    User ||--o{ GoogleMapsApiLog : google_maps_api_logs
+    User ||--o{ UserSearchHistory : search_history_relations
+    User ||--o{user_current_location_association: location_history
+    Location ||--o{user_current_location_association: location_history
+```
+

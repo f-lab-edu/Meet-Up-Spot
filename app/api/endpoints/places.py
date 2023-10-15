@@ -80,13 +80,7 @@ def recommend_places_based_on_current_location(
     Recommend places based on user's current location.
     """
     try:
-        if not current_user.latest_location or (
-            current_user.latest_location.latitude != location.latitude
-            or current_user.latest_location.longitude != location.longitude
-        ):
-            crud.user.add_location_history(
-                db, current_user, location.latitude, location.longitude
-            )
+        user_service.update_user_location_if_needed(db, current_user, location)
 
         # NOTE: 여기서는 유저 위치 기반으로 일반적인 추천을 하기 떄문에 검색에는 추가하지 않음
         recommend_services = Recommender(

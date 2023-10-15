@@ -15,7 +15,7 @@ python-dotenv = "*"
 fastapi = "*"
 pydantic = "*"
 alembic = "*"
-python-jose = {extras = ["cryptography"], version = "*"}
+python-jose = {extras = ["cryptography"] }
 passlib = "*"
 psycopg2-binary = "*"
 autoflake = "*"
@@ -35,6 +35,7 @@ geohash2 = "*"
 pytest-cov = "*"
 pytest = "*"
 sqlalchemy-stubs = "*"
+locust = "*"
 
 [requires]
 python_version = "3.11"

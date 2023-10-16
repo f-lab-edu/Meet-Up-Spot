@@ -36,6 +36,7 @@ pytest-cov = "*"
 pytest = "*"
 sqlalchemy-stubs = "*"
 locust = "*"
+profilehooks = "*"
 
 [requires]
 python_version = "3.11"

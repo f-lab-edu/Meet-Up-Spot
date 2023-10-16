@@ -16,5 +16,8 @@ class TestAppSettings(AppSettings):
 
     logging_level: int = logging.DEBUG
 
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6378
+
 
 settings = TestAppSettings()

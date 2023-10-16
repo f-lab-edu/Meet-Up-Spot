@@ -8,6 +8,7 @@ from app import crud, models, schemas
 from app.api.deps import get_db
 from app.core import security
 from app.core.config import get_app_settings
+from app.schemas.location import LocationBase
 
 settings = get_app_settings()
 
@@ -55,3 +56,13 @@ def get_current_active_superuser(
             detail="The user doesn't have enough privileges",
         )
     return current_user
+
+
+def update_user_location_if_needed(
+    db: Session, user: models.User, location: LocationBase
+):
+    if not user.latest_location or (
+        user.latest_location.latitude != location.latitude
+        or user.latest_location.longitude != location.longitude
+    ):
+        crud.user.add_location_history(db, user, location.latitude, location.longitude)

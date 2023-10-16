@@ -4,7 +4,7 @@ import sys
 from typing import Any, Dict, List, Optional, Union
 
 from dotenv import load_dotenv
-from pydantic import AnyHttpUrl, EmailStr, HttpUrl, PostgresDsn, field_validator
+from pydantic import AnyHttpUrl, EmailStr, Field, HttpUrl, PostgresDsn, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
 from app.core.settings.base import AppEnvTypes, BaseAppSettings
@@ -58,6 +58,10 @@ class AppSettings(BaseAppSettings):
     POSTGRES_DB: str = "test_db"
 
     DATABASE_URL: str = "postgresql+psycopg2://postgres:DO_NOT_USE_THIS_PASSWORD_IN_PRODUCTION@localhost:5432/test_db"
+
+    REDIS_HOST: str = Field("localhost", env="REDIS_HOST")
+    REDIS_PORT: int = Field(6378, env="REDIS_PORT")
+    REDIS_PASSWORD: Optional[str] = "DO_NOT_USE_THIS_PASSWORD_IN_PRODUCTION"
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod

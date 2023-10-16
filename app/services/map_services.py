@@ -27,6 +27,7 @@ from app.services.constants import (
     StatusDetail,
     TravelMode,
 )
+from app.services.redis_services import RedisServicesFactory
 
 settings = get_app_settings()
 
@@ -203,11 +204,14 @@ class MapAdapter:
 
 
 class MapServices:
-    def __init__(self, map_client=None):
-        if map_client is None:
-            map_client = googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
-        self.map_adapter = MapAdapter(map_client)
+    def __init__(self, map_client):
+        self._map_client = map_client
+        self._map_adapter = MapAdapter(map_client)
         self.max_results = 20
+
+    @property
+    def map_adapter(self):
+        return self._map_adapter
 
     def _extract_lat_lngs_from_results(self, results):
         return [
@@ -296,7 +300,7 @@ class MapServices:
 
         return existing_places + new_places
 
-    def _process_nearby_places_results(
+    def process_nearby_places_results(
         self, db: Session, user: User, results: List[dict]
     ) -> List[Place]:
         locations = self.create_or_get_locations(db, results)
@@ -309,15 +313,30 @@ class MapServices:
     def get_lat_lng_from_address(
         self, db: Session, user: User, address: str
     ) -> GeocodeResponse:
-        results = self.map_adapter.geocode_address(db, user, address)
+        redis_services = RedisServicesFactory.create_redis_services()
+        cached_coordinates = redis_services.get_cached_address_coordinates(address)
+
+        if cached_coordinates:
+            logger.info("Successfully cached Geocoding API response in Redis.")
+            return GeocodeResponse(
+                latitude=cached_coordinates["latitude"],
+                longitude=cached_coordinates["longitude"],
+            )
+
+        results = self._map_adapter.geocode_address(db, user, address)
 
         location = results[0]["geometry"]["location"]
+
+        redis_services.cache_address_coordinates(
+            address, location["lat"], location["lng"]
+        )
+
         return GeocodeResponse(latitude=location["lat"], longitude=location["lng"])
 
     def get_address_from_lat_lng(
         self, db: Session, user: User, latitude: float, longitude: float
     ) -> str:
-        result = self.map_adapter.reverse_geocode(db, user, latitude, longitude)
+        result = self._map_adapter.reverse_geocode(db, user, latitude, longitude)
 
         return ReverseGeocodeResponse(address=result[0]["formatted_address"])
 
@@ -332,14 +351,16 @@ class MapServices:
         user: User,
         latitude: float,
         longitude: float,
-        radius=1000,
+        radius=Radius.FIRST_RADIUS.value,
         language="ko",
         place_type=PLACETYPE.TRANSIT_STATION,
     ) -> List[Place]:
         """
         주변 지역 검색 API 요청
         """
-        response = self.map_adapter.search_nearby_places(
+        redis_services = RedisServicesFactory.create_redis_services()
+
+        response = self._map_adapter.search_nearby_places(
             db,
             user,
             latitude,
@@ -350,7 +371,14 @@ class MapServices:
         )
         results = response["results"]
 
-        return self._process_nearby_places_results(db, user, results)
+        if redis_services.cache_nearby_places_response(latitude, longitude, results):
+            logger.info(
+                "Successfully cached search_nearby_places API response in Redis."
+            )
+        if redis_services.add_location_to_redis(latitude, longitude):
+            logger.info("Successfully cached geolocation in Redis.")
+
+        return self.process_nearby_places_results(db, user, results)
 
     def get_complete_addresses(
         self, db: Session, user: User, addresses: List[str]
@@ -366,7 +394,7 @@ class MapServices:
     def get_auto_completed_place(
         self, db: Session, user: User, text: str
     ) -> List[AutoCompletedPlace]:
-        results = self.map_adapter.auto_complete_place(db, user, text)
+        results = self._map_adapter.auto_complete_place(db, user, text)
 
         return [
             AutoCompletedPlace(
@@ -409,8 +437,16 @@ class MapServices:
             language="ko",
             is_place_id=is_place_id,
         )
-        distances: List[DistanceInfo] = self.map_adapter.calculate_distance_matrix(
+        distances: List[DistanceInfo] = self._map_adapter.calculate_distance_matrix(
             db, user, **asdict(params)
         )
 
         return distances
+
+
+class MapServicesFactory:
+    @staticmethod
+    def create_map_services(map_client=None):
+        if map_client is None:
+            map_client = googlemaps.Client(key=settings.GOOGLE_MAPS_API_KEY)
+        return MapServices(map_client=map_client)

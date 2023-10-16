@@ -12,8 +12,6 @@ from app.services.recommend_services import Recommender
 from app.tests.utils.places import (
     auto_completed_place_schema,
     distance_info_list,
-    mock_geocode_response,
-    mock_location,
     mock_place_obj,
     places_list,
     test_address,
@@ -22,20 +20,12 @@ from app.tests.utils.places import (
 
 def test_recommend_places_based_on_requested_address(
     client: TestClient,
-    db: Session,
-    normal_user,
     settings: AppSettings,
     normal_user_token_headers,
 ):
     mock_recommender = create_autospec(Recommender)
     mock_recommender.recommend_places_by_address.return_value = [mock_place_obj]
-
-    with patch(
-        "app.api.endpoints.places.map_services.get_complete_addresses",
-        return_value=[test_address],
-    ) as mock_get_complete, patch(
-        "app.api.endpoints.places.Recommender", return_value=mock_recommender
-    ):
+    with patch("app.api.endpoints.places.Recommender", return_value=mock_recommender):
         response = client.post(
             f"{settings.API_V1_STR}/places/recommendations/by-address",
             json=[test_address],
@@ -45,8 +35,6 @@ def test_recommend_places_based_on_requested_address(
 
         assert response.status_code == 200
         assert response.json() == [mock_place_obj.model_dump()]
-
-        mock_get_complete.assert_called_once()
 
         mock_recommender.recommend_places_by_address.assert_called_once()
 

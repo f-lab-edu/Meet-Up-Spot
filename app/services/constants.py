@@ -102,3 +102,13 @@ class RankBy(Enum):
 class AGGREGATED_ATTR(str, Enum):
     DISTANCE = "distance_value"
     DURATION = "duration_value"
+
+
+class RedisKey(str, Enum):
+    GEOLOCATIONS_KEY = "geolocations"
+    GEOCODE = "geocode"
+
+
+REDIS_SEARCH_RADIUS = 500
+REDIS_EXPIRE_TIME = 3600  # 1시간
+GEOHASH_PRECISION = 12

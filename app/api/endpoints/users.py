@@ -178,5 +178,5 @@ def add_to_user_location_history(
             status_code=HTTPStatus.NOT_FOUND,
             detail="The user with this username does not exist in the system",
         )
-    crud.user.add_to_location_history(db, current_user, latitude, longitude)
+    crud.user.add_location_history(db, current_user, latitude, longitude)
     return {"msg": "Successfully added to user location history"}

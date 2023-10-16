@@ -8,8 +8,9 @@ from app.core.settings.app import AppSettings
 from app.crud.crud_place import CRUDPlaceFactory
 from app.models.place import Place
 from app.schemas.google_maps_api import GeocodeResponse
-from app.services.constants import PLACETYPE
-from app.services.recommend_services import Recommender
+from app.services.constants import PLACETYPE, REDIS_SEARCH_RADIUS
+from app.services.recommend_services import CandidateFetcher, Recommender
+from app.services.redis_services import RedisServicesFactory
 from app.tests.utils.places import create_random_place, user_preferences
 
 
@@ -29,6 +30,42 @@ def test_candidate_fetcher_fetch_by_address(
     results = recommender.candidate_fetcher.fetch_by_address("판교역", PLACETYPE.CAFE)
 
     assert results == []
+
+
+def test_get_cached_places(db: Session, map_service, normal_user, redis_services):
+    redis_services.add_location_to_redis(37.0, 127.0)
+    redis_services.cache_nearby_places_response(37.0, 127.0, ["test"])
+
+    map_service.process_nearby_places_results = MagicMock(return_value=["test"])
+    candidate_fetcher = CandidateFetcher(db, normal_user, map_service, redis_services)
+
+    places = candidate_fetcher._get_cached_places(37.0, 127.0, REDIS_SEARCH_RADIUS)
+
+    assert places == ["test"]
+
+
+def test_get_cached_places_no_cache(db: Session, map_service, normal_user):
+    redis_services = RedisServicesFactory.create_redis_services()
+
+    candidate_fetcher = CandidateFetcher(db, normal_user, map_service, redis_services)
+
+    places = candidate_fetcher._get_cached_places(37.0, 127.0, REDIS_SEARCH_RADIUS)
+
+    assert places == []
+
+
+def test_fetch_places_by_coordinates_with_cached(
+    db: Session, map_service, normal_user, redis_services
+):
+    redis_services.add_location_to_redis(37.0, 127.0)
+    redis_services.cache_nearby_places_response(37.0, 127.0, ["test"])
+
+    candidate_fetcher = CandidateFetcher(db, normal_user, map_service, redis_services)
+    candidate_fetcher._get_cached_places = MagicMock(return_value=["test"])
+
+    places = candidate_fetcher.fetch_places_by_coordinates(37.0, 127.0, PLACETYPE.CAFE)
+
+    assert places == ["test"]
 
 
 def test_candidate_fetcher_fetch_by_midpoint(db: Session, map_service, normal_user):
@@ -90,29 +127,6 @@ def test_recommend_places_one_address(db, map_service, normal_user):
         addresses[0], user_preferences.place_type
     )
     recommender.rank_candidates.assert_called_once_with(candidates, addresses=addresses)
-
-
-def test_recommend_places_by_location(db, map_service, normal_user):
-    recommender = Recommender(db, normal_user, map_service, user_preferences)
-
-    map_service.get_nearby_places = MagicMock()
-    recommender.rank_candidates = MagicMock()
-
-    latitude = 37.0
-    longitude = 127.0
-    candidates = [MagicMock(spec=Place), MagicMock(spec=Place)]
-
-    ranked_candidates = [MagicMock(spec=Place)]
-    recommender.rank_candidates.return_value = ranked_candidates
-    map_service.get_nearby_places.return_value = candidates
-
-    result = recommender.recommend_places_by_location(db, latitude, longitude)
-
-    assert result == ranked_candidates
-
-    recommender.rank_candidates.assert_called_once_with(
-        candidates, addresses=[f"{latitude},{longitude}"]
-    )
 
 
 def test_compute_recentness_weight_over_7days(

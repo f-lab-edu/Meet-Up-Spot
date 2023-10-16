@@ -100,3 +100,14 @@ def normal_user(db: Session, settings: AppSettings):
     from app.tests.utils.user import create_random_user
 
     return create_random_user(db)
+
+
+@pytest.fixture
+def redis_services():
+    from app.services.redis_services import RedisServicesFactory
+
+    redis_services = RedisServicesFactory.create_redis_services()
+    try:
+        yield redis_services
+    finally:
+        redis_services.redis_client.flushdb()

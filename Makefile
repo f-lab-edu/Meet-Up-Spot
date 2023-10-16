@@ -26,8 +26,13 @@ test_in_actions: prepare_db
 test_mark: prepare_db test_common
 
 test_one: prepare_db
-	$(DOCKER_COMPOSE_TEST) up test-db -d
+	$(DOCKER_COMPOSE_TEST) up  -d test-db test-redis
 	-$(PYTHONPATH_SETTING) $(PIPENV_RUN) pytest -s -v ${test-path}
+	$(DOCKER_COMPOSE_TEST) down
+
+profile:prepare_db
+	$(DOCKER_COMPOSE_TEST) up  -d test-db test-redis
+	$(PIPENV_RUN) python profiling.py
 	$(DOCKER_COMPOSE_TEST) down
 
 run_pgadmin:

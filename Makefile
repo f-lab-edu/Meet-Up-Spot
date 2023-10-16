@@ -30,6 +30,11 @@ test_one: prepare_db
 	-$(PYTHONPATH_SETTING) $(PIPENV_RUN) pytest -s -v ${test-path}
 	$(DOCKER_COMPOSE_TEST) down
 
+profile:prepare_db
+	$(DOCKER_COMPOSE_TEST) up  -d test-db test-redis
+	$(PIPENV_RUN) python profiling.py
+	$(DOCKER_COMPOSE_TEST) down
+
 run_pgadmin:
 	$(DOCKER_COMPOSE_TEST) up -d pgadmin
 

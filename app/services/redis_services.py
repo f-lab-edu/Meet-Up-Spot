@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 import redis
 
 from app.core.config import get_app_settings
-from app.services.constants import RedisKey
+from app.services.constants import GEOHASH_PRECISION, REDIS_EXPIRE_TIME, RedisKey
 from app.utils import geohash_decode, geohash_encode
 
 settings = get_app_settings()
@@ -41,10 +41,13 @@ class RedisServices:
         self, address: str, latitude: float, longitude: float
     ) -> bool:
         try:
-            location_geohash = geohash_encode(latitude, longitude, precision=10)
-            print(location_geohash)
+            location_geohash = geohash_encode(
+                latitude, longitude, precision=GEOHASH_PRECISION
+            )
+
             return (
-                self._redis_client.set(address, location_geohash, ex=3600) > 0
+                self._redis_client.set(address, location_geohash, ex=REDIS_EXPIRE_TIME)
+                > 0
             )  # 캐시 유효 시간은 1시간으로
         except redis.RedisError as error:
             logger.error(
@@ -59,7 +62,7 @@ class RedisServices:
             location_geohash = self._redis_client.get(address)
             if location_geohash:
                 latitude, longitude = geohash_decode(location_geohash.decode("utf-8"))
-                print(latitude, longitude)
+
                 return {"latitude": float(latitude), "longitude": float(longitude)}
             return None
         except redis.RedisError as error:
@@ -107,7 +110,12 @@ class RedisServices:
         location_geohash = geohash_encode(latitude, longitude)
         results_json = json.dumps(results)
         try:
-            return self._redis_client.set(location_geohash, results_json, ex=3600) > 0
+            return (
+                self._redis_client.set(
+                    location_geohash, results_json, ex=REDIS_EXPIRE_TIME
+                )
+                > 0
+            )
         except redis.RedisError as error:
             logger.error(f"Error caching API response in Redis: {error}", exc_info=True)
             raise RedisOperationError("API 응답을 Redis에 캐싱하는 요청을 실패했습니다.") from error

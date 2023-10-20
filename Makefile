@@ -1,5 +1,6 @@
 ENV_FILE ?= test.env
-DOCKER_COMPOSE_TEST = docker-compose -f ./testing.yml
+DOCKER_COMPOSE_TEST = docker-compose -f docker/testing.yml
+DOCKER_COMPOSE_DEV = docker-compose -f docker/development.yml
 PIPENV_RUN = PIPENV_DOTENV_LOCATION=$(ENV_FILE) pipenv run
 PYTHONPATH_SETTING = export PYTHONPATH=./:$$PYTHONPATH;
 
@@ -42,13 +43,13 @@ first_user:
 	docker-compose run --rm web python app/initial_data.py
 
 meet-build:
-	docker-compose build
+	$(DOCKER_COMPOSE_DEV) build 
 
 meet-up:
-	docker-compose up
+	$(DOCKER_COMPOSE_DEV) up 
 
 meet-down:
 	docker-compose down
 
 meet-initial-data:
-	docker-compose exec web python app/initial_data.py
+	$(DOCKER_COMPOSE_DEV) exec web python app/initial_data.py

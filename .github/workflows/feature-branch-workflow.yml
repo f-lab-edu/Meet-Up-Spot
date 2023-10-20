@@ -41,7 +41,7 @@ jobs:
 
       - name: Create database and redis
         run: |
-          sudo docker-compose -f ./testing.yml up -d test-db test-redis
+          sudo docker-compose -f ./docker/testing.yml up -d test-db test-redis
 
       - name: Create directory and Build MJML files
         run: |

@@ -38,7 +38,7 @@ class ProdAppSettings(AppSettings):
     EMAILS_FROM_NAME: Optional[str] = os.environ["EMAILS_FROM_NAME"]
 
     class Config(AppSettings.Config):
-        env_file = "prod.env"
+        env_file = ".env"
 
 
 settings = ProdAppSettings()

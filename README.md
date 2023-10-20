@@ -80,5 +80,7 @@
 ![image](https://github.com/f-lab-edu/Meet-Up-Spot/assets/44284694/7c69f0de-ba89-4928-b816-e145e5ec352b)
 
 ## 인프라 구조
-![image](https://github.com/f-lab-edu/Meet-Up-Spot/assets/44284694/508dfef5-fcc1-4eeb-ba31-1f74835f35a1)
+![image](https://github.com/f-lab-edu/Meet-Up-Spot/assets/44284694/d17b577a-8cd8-49fe-8bf7-e0809ffb57c9)
+
+
 

@@ -32,8 +32,8 @@
 
 ### 사용자 관련 /users
 <details>
-  
-  * 자신의 정보 업데이트
+
+* 자신의 정보 업데이트
   * Endpoint: /me
   * Method: PUT
 * 자신의 정보 조회
@@ -77,16 +77,7 @@
 </details>
 
 ## ERD
+![image](https://github.com/f-lab-edu/Meet-Up-Spot/assets/44284694/7c69f0de-ba89-4928-b816-e145e5ec352b)
 
  
-``` mermaid
-erDiagram
-User ||--o{ Place : interested_places
-    Place ||--o{ PlaceType : place_types
-    Location ||--o{Place:places
-    User ||--o{ GoogleMapsApiLog : google_maps_api_logs
-    User ||--o{ UserSearchHistory : search_history_relations
-    User ||--o{user_current_location_association: location_history
-    Location ||--o{user_current_location_association: location_history
-```
 

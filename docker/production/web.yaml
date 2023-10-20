@@ -1,0 +1,162 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+spec:
+  ports:
+    - name: "http"
+      port: 80
+      targetPort: 8000
+  type: LoadBalancer
+  selector:
+    app: web
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      serviceAccountName: dumpling
+      containers:
+        - name: web
+          image: gcr.io/pioneering-rex-402212/meet-up-spot:latest
+          env:
+            - name: APP_ENV
+              value: production
+            - name: BACKEND_CORS_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  key: BACKEND_CORS_ORIGINS
+                  name: meet-up-spot-config
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  key: DATABASE_URL
+                  name: meet-up-spot-secret
+            - name: EMAILS_FROM_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  key: EMAILS_FROM_EMAIL
+                  name: meet-up-spot-config
+            - name: EMAILS_FROM_NAME
+              valueFrom:
+                configMapKeyRef:
+                  key: EMAILS_FROM_NAME
+                  name: meet-up-spot-config
+            - name: FIRST_SUPERUSER
+              valueFrom:
+                configMapKeyRef:
+                  key: FIRST_SUPERUSER
+                  name: meet-up-spot-config
+            - name: FIRST_SUPERUSER_PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  key: FIRST_SUPERUSER_PASSWORD
+                  name: meet-up-spot-config
+            - name: GOOGLE_MAPS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: GOOGLE_MAPS_API_KEY
+                  name: meet-up-spot-secret
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  key: database
+                  name: gke-cloud-sql-secrets
+            - name: POSTGRES_HOST
+              valueFrom:
+                configMapKeyRef:
+                  key: POSTGRES_HOST
+                  name: meet-up-spot-config
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: password
+                  name: gke-cloud-sql-secrets
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  key: username
+                  name: gke-cloud-sql-secrets
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  key: REDIS_HOST
+                  name: meet-up-spot-config
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: REDIS_PORT
+                  name: meet-up-spot-config
+            - name: SMTP_HOST
+              valueFrom:
+                configMapKeyRef:
+                  key: SMTP_HOST
+                  name: meet-up-spot-config
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: SMTP_PASSWORD
+                  name: meet-up-spot-secret
+            - name: SMTP_PORT
+              valueFrom:
+                configMapKeyRef:
+                  key: SMTP_PORT
+                  name: meet-up-spot-config
+            - name: SMTP_TLS
+              valueFrom:
+                configMapKeyRef:
+                  key: SMTP_TLS
+                  name: meet-up-spot-config
+            - name: SMTP_USER
+              valueFrom:
+                configMapKeyRef:
+                  key: SMTP_USER
+                  name: meet-up-spot-config
+
+          # If you are using the Python Connector (recommended), you can
+          # remove cloud-sql-proxy (everything below this line)
+        - name: cloud-sql-proxy
+          # This uses the latest version of the Cloud SQL proxy
+          # It is recommended to use a specific version for production environments.
+          # See: https://github.com/GoogleCloudPlatform/cloudsql-proxy
+          image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:latest
+          args:
+            # If connecting from a VPC-native GKE cluster, you can use the
+            # following flag to have the proxy connect over private IP
+            # - "--private-ip"
+
+            # If you are not connecting with Automatic IAM, you can delete
+            # the following flag.
+            - --auto-iam-authn
+
+            - "--structured-logs"
+
+            # tcp should be set to the port the proxy should listen on
+            # and should match the DB_PORT value set above.
+            # Defaults: MySQL: 3306, Postgres: 5432, SQLServer: 1433
+            - --port=5432
+            - pioneering-rex-402212:us-central1:dumplingresql-9621
+          securityContext:
+            # The default Cloud SQL proxy image runs as the
+            # "nonroot" user and group (uid: 65532) by default.
+            runAsNonRoot: true
+
+          resources:
+            limits:
+              cpu: 500m
+              memory: 1Gi
+            requests:
+              cpu: 500m
+              memory: 1Gi
+      restartPolicy: Always

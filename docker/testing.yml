@@ -1,0 +1,73 @@
+version: "3"
+
+services:
+  test-db:
+    image: postgres:13
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - test-db-data:/var/lib/postgresql/data/pgdata
+    ports:
+      - "5433:5432"
+    environment:
+      - PGDATA=/var/lib/postgresql/data/pgdata
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=DO_NOT_USE_THIS_PASSWORD_IN_PRODUCTION
+      - POSTGRES_DB=test_db
+      - APP_ENV=test
+    env_file:
+      - ../test.env
+
+  test-redis:
+    image: redis:latest
+    command: redis-server
+    ports:
+      - "6378:6379"
+    volumes:
+      - test-redis-data:/data
+    environment:
+      - ALLOW_EMPTY_PASSWORD=no
+      - REDIS_PASSWORD=DO_NOT_USE_THIS_PASSWORD_IN_PRODUCTION
+    networks:
+      - mynetwork
+
+  test-web:
+    build: .
+    command: bash -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - test-db
+      - test-redis
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://postgres:DO_NOT_USE_THIS_PASSWORD_IN_PRODUCTION@test-db:5433/test_db
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - APP_ENV=test
+    env_file:
+      - ../test.env
+
+  test-pgadmin:
+    container_name: pgadmin
+    image: dpage/pgadmin4
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=pgadmin4@pgadmin.org
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - "5040:80"
+    depends_on:
+      - test-db
+    env_file:
+      - ../test.env
+
+volumes:
+  test-db-data:
+  test-redis-data:
+
+networks:
+  mynetwork:

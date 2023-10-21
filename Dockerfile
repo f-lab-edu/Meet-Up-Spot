@@ -4,6 +4,7 @@ FROM python:3.11.5
 # Set environment varibles
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
+ENV APP_ENV "proudction"
 
 WORKDIR /Meet-Up-Spot
 

@@ -1,73 +1,78 @@
 version: "3"
 
 services:
-  test-db:
+  db:
     image: postgres:13
+    volumes:
+      - app-db-data:/var/lib/postgresql/data/pgdata
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
-    volumes:
-      - test-db-data:/var/lib/postgresql/data/pgdata
     ports:
-      - "5433:5432"
+      - "5432:5432"
     environment:
       - PGDATA=/var/lib/postgresql/data/pgdata
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=DO_NOT_USE_THIS_PASSWORD_IN_PRODUCTION
       - POSTGRES_DB=test_db
-      - APP_ENV=test
-    env_file:
-      - test.env
+      - APP_ENV=development
+      - POSTGRES_HOST=db
 
-  test-redis:
+  redis:
     image: redis:latest
     command: redis-server
     ports:
-      - "6378:6379"
+      - "6379:6379"
     volumes:
-      - test-redis-data:/data
+      - redis-data:/data
     environment:
       - ALLOW_EMPTY_PASSWORD=no
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-    networks:
-      - mynetwork
+      - REDIS_PASSWORD=DO_NOT_USE_THIS_PASSWORD_IN_PRODUCTION
 
-  test-web:
-    build: .
+  web:
+    build:
+      context: ..
+      dockerfile: Dockerfile
     command: bash -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
     ports:
       - "8000:8000"
     depends_on:
-      - test-db
-      - test-redis
+      - db
+      - redis
+    env_file:
+      - ../.env
+    volumes:
+      - ../app:/Meet-Up-Spot/app
+      - ../alembic:/Meet-Up-Spot/alembic
+      - ../alembic.ini:/Meet-Up-Spot/alembic.ini
+      - ../main.py:/Meet-Up-Spot/main.py
+
     environment:
-      - DATABASE_URL=postgresql+psycopg2://postgres:DO_NOT_USE_THIS_PASSWORD_IN_PRODUCTION@test-db:5433/test_db
+      - DATABASE_URL=postgresql+psycopg2://postgres:DO_NOT_USE_THIS_PASSWORD_IN_PRODUCTION@db:5432/test_db
       - SMTP_HOST=smtp.gmail.com
       - SMTP_PORT=587
       - SMTP_USER=${SMTP_USER}
       - SMTP_PASSWORD=${SMTP_PASSWORD}
-      - APP_ENV=test
-    env_file:
-      - test.env
+      - APP_ENV=development
 
-  test-pgadmin:
+  pgadmin:
     container_name: pgadmin
     image: dpage/pgadmin4
     environment:
       - PGADMIN_DEFAULT_EMAIL=pgadmin4@pgadmin.org
       - PGADMIN_DEFAULT_PASSWORD=admin
     ports:
-      - "5040:80"
+      - "5050:80"
     depends_on:
-      - test-db
+      - db
     env_file:
-      - test.env
+      - ../.env
 
 volumes:
-  test-db-data:
-  test-redis-data:
+  app-db-data:
+  redis-data:
 
 networks:
   mynetwork:

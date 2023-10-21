@@ -1,3 +1,6 @@
+#!/bin/bash
+
+
 pipenv run alembic upgrade head
 
 # Create initial data in DB

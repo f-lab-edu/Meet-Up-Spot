@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgadmin
+spec:
+  ports:
+    - name: "http"
+      port: 80
+      targetPort: 80
+  type: LoadBalancer
+  selector:
+    app: pgadmin
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgadmin
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pgadmin
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: pgadmin
+    spec:
+      containers:
+        - image: dpage/pgadmin4
+          name: pgadmin
+          ports:
+            - containerPort: 80
+          env:
+            - name: PGADMIN_DEFAULT_EMAIL
+              valueFrom:
+                configMapKeyRef:
+                  key: PGADMIN_DEFAULT_EMAIL
+                  name: meet-up-spot-config
+            - name: PGADMIN_DEFAULT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  key: PGADMIN_DEFAULT_PASSWORD
+                  name: meet-up-spot-secret
+
+      restartPolicy: Always

@@ -52,8 +52,8 @@ jobs:
             mjml $file -o app/email-templates/build/${name}.html
           done
 
-      - name: Execute prestart.sh script
-        run: sh prestart.sh
+      - name: Execute test_prestart.sh script
+        run: sh test_prestart.sh
 
       - name: Run tests with coverage
         run: |

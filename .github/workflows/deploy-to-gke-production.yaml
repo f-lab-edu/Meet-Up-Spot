@@ -1,0 +1,55 @@
+name: Build and deploy the main branch
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+env:
+  DOCKER_IMAGE: gcr.io/pioneering-rex-402212/meet-up-spot:production-${{ github.sha }}
+  GKE_PROJECT: pioneering-rex-402212
+  GKE_ZONE: us-central1-a
+  GKE_CLUSTER: cluster-1
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - id: "auth"
+        uses: "google-github-actions/auth@v1"
+        with:
+          credentials_json: "${{ secrets.GKE_SA_KEY }}"
+
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v1"
+
+      - name: Configure Docker
+        run: |
+          gcloud --quiet auth configure-docker
+
+      - name: Install Kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - uses: simenandre/setup-gke-gcloud-auth-plugin@v1
+
+      - uses: google-github-actions/get-gke-credentials@v1
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          location: ${{ env.GKE_ZONE }}
+
+      - name: Set image tag
+        run: |
+          cd docker/production
+          kustomize edit set image gcr.io/pioneering-rex-402212/meet-up-spot=${{ env.DOCKER_IMAGE }}
+
+      - name: Check kubectl location
+        run: which kubectl
+
+      - name: Deploy to GKE
+        run: |
+          kustomize build docker/production | kubectl apply -f -

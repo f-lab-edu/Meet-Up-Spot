@@ -60,9 +60,9 @@ spec:
                   name: meet-up-spot-config
             - name: FIRST_SUPERUSER_PASSWORD
               valueFrom:
-                configMapKeyRef:
+                secretKeyRef:
                   key: FIRST_SUPERUSER_PASSWORD
-                  name: meet-up-spot-config
+                  name: meet-up-spot-secret
             - name: GOOGLE_MAPS_API_KEY
               valueFrom:
                 secretKeyRef:

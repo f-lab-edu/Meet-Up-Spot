@@ -1,12 +1,10 @@
-from fastapi import Depends
 from sqlalchemy.orm import Session
 
 from app import crud, schemas
 from app.core.config import get_app_settings
-from app.core.settings.app import AppSettings
-from app.db import base  # noqa: F401
 
 settings = get_app_settings()
+
 
 def init_db(
     db: Session,

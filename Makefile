@@ -4,10 +4,10 @@ DOCKER_COMPOSE_DEV = docker-compose -f docker/development.yml
 PIPENV_RUN = PIPENV_DOTENV_LOCATION=$(ENV_FILE) pipenv run
 
 
-.PHONY: build test_in_actions test_mark test_one run_pgadmin first_user meet-build meet-up meet-down meet-initial_data set-pythonpath
+.PHONY: build test_in_actions test_mark test_one run_pgadmin first_user meet-build meet-up meet-down meet-initial_data prestart
 
 prestart:
-	echo 'export PYTHONPATH="$$(pwd)"' > set_pythonpath.sh
+	echo 'export PYTHONPATH=$$(pwd)' > set_pythonpath.sh
 	bash set_pythonpath.sh
 	rm set_pythonpath.sh
 
@@ -35,7 +35,6 @@ test_in_actions: prepare_db
 test_mark: prepare_db test_common
 
 test_one: prepare_db prepare_redis
-	$(DOCKER_COMPOSE_TEST) up  -d test-db test-redis
 	-$(PIPENV_RUN) pytest -s -v ${test-path}
 	$(DOCKER_COMPOSE_TEST) down
 

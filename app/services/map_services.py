@@ -16,7 +16,7 @@ from app.schemas.google_maps_api import (
     ReverseGeocodeResponse,
 )
 from app.schemas.google_maps_api_log import GoogleMapsApiLogCreate
-from app.schemas.location import Location, LocationCreate
+from app.schemas.location import Location, LocationBase, LocationCreate
 from app.schemas.place import AutoCompletedPlace, Place, PlaceCreate
 from app.services.constants import (
     GOOGLE_MAPS_URL,
@@ -137,8 +137,16 @@ class MapAdapter:
         )
 
     @add_api_request_log
-    def auto_complete_place(self, db, user, text: str, language="ko") -> List[dict]:
-        return self.client.places_autocomplete(text, language=language)
+    def auto_complete_place(
+        self, db, user, text: str, location: LocationBase = None, language="ko"
+    ) -> List[dict]:
+        res = self.client.places_autocomplete(
+            text,
+            language=language,
+            location=f"{location.latitude}, {location.longitude}" if location else None,
+            radius=Radius.AUTO_COMPLETE_RADIUS.value if location else None,
+        )
+        return res
 
     @add_api_request_log
     def get_place_detail(self, db, user, place_id: str):
@@ -390,11 +398,10 @@ class MapServices:
             )
         return complete_addresses
 
-    # TODO: 위치 기반이 되야 할거 같음. 현재 위치를 기반으로 주변 장소를 검색하고, 그 장소들을 기반으로 추천을 해야할듯
     def get_auto_completed_place(
-        self, db: Session, user: User, text: str
+        self, db: Session, user: User, text: str, location: LocationBase = None
     ) -> List[AutoCompletedPlace]:
-        results = self._map_adapter.auto_complete_place(db, user, text)
+        results = self._map_adapter.auto_complete_place(db, user, text, location)
 
         return [
             AutoCompletedPlace(

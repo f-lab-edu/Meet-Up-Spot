@@ -112,7 +112,7 @@ def recommend_places_based_on_current_location(
 
 
 @router.get("/{place_id}", response_model=Place)
-async def read_place_by_id(
+def read_place_by_id(
     place_id: str,
     current_user: models.User = Depends(user_service.get_current_active_user),
     db: Session = Depends(get_db),
@@ -130,7 +130,7 @@ async def read_place_by_id(
 
 # TODO: 유저 place 타입 기반으로 필터링 하거나 엔드포인트 추가
 @router.get("/", response_model=List[Place])
-async def read_places(
+def read_places(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(user_service.get_current_active_user),
 ):
@@ -145,7 +145,7 @@ async def read_places(
 
 
 @router.post("/{place_id}/mark", response_model=Msg)
-async def mark_interest(
+def mark_interest(
     place_id: str,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(user_service.get_current_active_user),
@@ -167,7 +167,7 @@ async def mark_interest(
 
 
 @router.delete("/{place_id}/unmark", response_model=Msg)
-async def unmark_interest(
+def unmark_interest(
     place_id: str,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(user_service.get_current_active_user),
@@ -190,7 +190,7 @@ async def unmark_interest(
 
 
 @router.get("/completed-places/{address}", response_model=List[AutoCompletedPlace])
-async def read_auto_completed_places(
+def read_auto_completed_places(
     address: str,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(user_service.get_current_active_user),

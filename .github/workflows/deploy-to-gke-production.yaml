@@ -1,18 +1,36 @@
-name: Build and deploy the main branch
+name: Build, tag, and deploy the main branch
 
 on:
   push:
     branches:
       - main
-      - develop
 
 env:
-  DOCKER_IMAGE: gcr.io/pioneering-rex-402212/meet-up-spot:production-${{ github.sha }}
-  GKE_PROJECT: pioneering-rex-402212
+  GKE_PROJECT: gcr.io/pioneering-rex-402212/meet-up-spot
   GKE_ZONE: us-central1-a
   GKE_CLUSTER: cluster-1
+
 jobs:
+  build_and_tag:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.tag_version.outputs.version }}
+    steps:
+      - name: Bump version and push tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create a GitHub release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.tag_version.outputs.new_tag }}
+          name: Release ${{ steps.tag_version.outputs.new_tag }}
+          body: ${{ steps.tag_version.outputs.changelog }}
+
   deploy:
+    needs: build_and_tag
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -32,7 +50,7 @@ jobs:
 
       - name: Build and Push Docker image
         run: |
-          docker buildx build --platform linux/amd64  -t ${{ env.DOCKER_IMAGE }} --push .
+          docker buildx build --platform linux/amd64  -t ${{env.GKE_PROJECT}}:production-${{ needs.build_and_tag.outputs.version }} --push .
 
       - name: Install Kustomize
         run: |
@@ -49,7 +67,7 @@ jobs:
       - name: Set image tag
         run: |
           cd docker/production
-          kustomize edit set image gcr.io/pioneering-rex-402212/meet-up-spot=${{ env.DOCKER_IMAGE }}
+          kustomize edit set image ${{env.GKE_PROJECT}}=${{env.GKE_PROJECT}}:production-${{ needs.build_and_tag.outputs.version }}
 
       - name: Check kubectl location
         run: which kubectl

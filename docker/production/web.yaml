@@ -21,16 +21,16 @@ spec:
   selector:
     matchLabels:
       app: web
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
   template:
     metadata:
       labels:
         app: web
     spec:
-      strategy:
-        type: RollingUpdate
-        rollingUpdate:
-          maxSurge: 0
-          maxUnavailable: 1
       serviceAccountName: dumpling
       containers:
         - name: web

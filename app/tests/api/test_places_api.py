@@ -144,7 +144,7 @@ def test_read_auto_completed_places(
 
         assert response.status_code == 200
         assert len(response.json()) == 1
-        mock_auto_complete.assert_called_once_with(ANY, ANY, test_address)
+        mock_auto_complete.assert_called_once_with(ANY, ANY, test_address, None)
 
 
 def test_get_distance_matrix(

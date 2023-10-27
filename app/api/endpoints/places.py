@@ -1,7 +1,7 @@
 from http import HTTPStatus
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app import crud, models
@@ -189,9 +189,14 @@ def unmark_interest(
     return {"msg": "Place successfully unmarked"}
 
 
-@router.get("/completed-places/{address}", response_model=List[AutoCompletedPlace])
+@router.get(
+    "/completed-places/{address}",
+    response_model=List[AutoCompletedPlace],
+)
 def read_auto_completed_places(
     address: str,
+    latitude: Optional[float] = Query(None),
+    longitude: Optional[float] = Query(None),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(user_service.get_current_active_user),
     map_services: MapServices = Depends(get_map_services),
@@ -200,7 +205,15 @@ def read_auto_completed_places(
     retrieve some auto completed places
     """
     try:
-        places = map_services.get_auto_completed_place(db, current_user, address)
+        location = (
+            LocationBase(latitude=latitude, longitude=longitude)
+            if latitude and longitude
+            else None
+        )
+
+        places = map_services.get_auto_completed_place(
+            db, current_user, address, location
+        )
 
         return places
     except Exception as error:

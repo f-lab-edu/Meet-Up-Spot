@@ -89,6 +89,7 @@ class TransitRoutingPreference(str, Enum):
 
 
 class Radius(Enum):
+    AUTO_COMPLETE_RADIUS = 1000
     FIRST_RADIUS = 10000
     SECOND_RADIUS = 25000
     THIRD_RADIUS = 50000

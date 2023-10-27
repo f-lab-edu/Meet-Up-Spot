@@ -1,0 +1,43 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+requests = "*"
+uvicorn = "*"
+sqlalchemy = "*"
+haversine = "*"
+pydantic-settings = "*"
+typing-extensions = "*"
+email-validator = "*"
+python-dotenv = "*"
+fastapi = "*"
+pydantic = "*"
+alembic = "*"
+python-jose = {extras = ["cryptography"] }
+passlib = "*"
+psycopg2-binary = "*"
+autoflake = "*"
+yagmail = "*"
+jinja2 = "*"
+tenacity = "*"
+httpx = "*"
+python-multipart = "*"
+googlemaps = "*"
+bcrypt = "*"
+pytest-xdist = "*"
+pytz = "*"
+redis = "*"
+geohash2 = "*"
+
+[dev-packages]
+pytest-cov = "*"
+pytest = "*"
+sqlalchemy-stubs = "*"
+locust = "*"
+profilehooks = "*"
+
+[requires]
+python_version = "3.11"
+python_full_version = "3.11.5"

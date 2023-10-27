@@ -1,0 +1,77 @@
+name: Build, tag, and deploy the main branch
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  GKE_PROJECT: gcr.io/pioneering-rex-402212/meet-up-spot
+  GKE_ZONE: us-central1-a
+  GKE_CLUSTER: cluster-1
+
+jobs:
+  build_and_tag:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.tag_version.outputs.version }}
+    steps:
+      - name: Bump version and push tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create a GitHub release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.tag_version.outputs.new_tag }}
+          name: Release ${{ steps.tag_version.outputs.new_tag }}
+          body: ${{ steps.tag_version.outputs.changelog }}
+
+  deploy:
+    needs: build_and_tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - id: "auth"
+        uses: "google-github-actions/auth@v1"
+        with:
+          credentials_json: "${{ secrets.GKE_SA_KEY }}"
+
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v1"
+
+      - name: Configure Docker
+        run: |
+          gcloud --quiet auth configure-docker
+
+      - name: Build and Push Docker image
+        run: |
+          docker buildx build --platform linux/amd64  -t ${{env.GKE_PROJECT}}:production-${{ needs.build_and_tag.outputs.version }} --push .
+
+      - name: Install Kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+      - uses: simenandre/setup-gke-gcloud-auth-plugin@v1
+
+      - uses: google-github-actions/get-gke-credentials@v1
+        with:
+          cluster_name: ${{ env.GKE_CLUSTER }}
+          location: ${{ env.GKE_ZONE }}
+
+      - name: Set image tag
+        run: |
+          cd docker/production
+          kustomize edit set image ${{env.GKE_PROJECT}}=${{env.GKE_PROJECT}}:production-${{ needs.build_and_tag.outputs.version }}
+
+      - name: Check kubectl location
+        run: which kubectl
+
+      - name: Deploy to GKE
+        run: |
+          kustomize build docker/production | kubectl apply -f -

@@ -10,33 +10,60 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
+    env:
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+      DATABASE_URL: "postgresql+psycopg2://postgres:DO_NOT_USE_THIS_PASSWORD_IN_PRODUCTION@127.0.0.1:5433/test_db"
+      APP_ENV: "test"
 
     steps:
-    - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.11
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.11.5
 
-    - name: Install dependencies
-      run: |
-        pip install pipenv
-        pipenv install --deploy --ignore-pipfile
+      - name: Set PYTHONPATH
+        run: echo "PYTHONPATH=$(pwd)" >> $GITHUB_ENV
 
-    - name: Run tests with coverage
-      run: |
-        pytest -v --cov=tests/ --cov-report=xml:./coverage.xml
+      - name: Install pipenv
+        run: pip install pipenv
 
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v2
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
-        yml: ./codecov.yml  # Optional
+      - name: Install project dependencies
+        run: |
+          pipenv install --dev --deploy --ignore-pipfile
+          npm install -g mjml
+
+      - name: Create database and redis
+        run: |
+          sudo docker-compose -f ./docker/testing.yml up -d test-db test-redis
+
+      - name: Create directory and Build MJML files
+        run: |
+          mkdir -p app/email-templates/build/
+          for file in app/email-templates/src/*.mjml
+          do
+            name=$(basename $file .mjml)
+            mjml $file -o app/email-templates/build/${name}.html
+          done
+
+      - name: Execute test_prestart.sh script
+        run: sh test_prestart.sh
+
+      - name: Run tests with coverage
+        run: |
+          pipenv run pytest -s -v --cov --cov-report=xml:./coverage.xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          yml: ./codecov.yml # Optional

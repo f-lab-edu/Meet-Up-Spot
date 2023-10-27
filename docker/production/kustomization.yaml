@@ -1,0 +1,9 @@
+# docker/production/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - web.yaml
+  - pgadmin.yaml
+  - redis.yaml
+  - redis-data-persistentvolumeclaim.yaml

@@ -26,6 +26,11 @@ spec:
       labels:
         app: web
     spec:
+      strategy:
+        type: RollingUpdate
+        rollingUpdate:
+          maxSurge: 0
+          maxUnavailable: 1
       serviceAccountName: dumpling
       containers:
         - name: web

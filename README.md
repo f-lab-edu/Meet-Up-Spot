@@ -77,7 +77,7 @@
 </details>
 
 ## ERD
-![image](https://github.com/f-lab-edu/Meet-Up-Spot/assets/44284694/7c69f0de-ba89-4928-b816-e145e5ec352b)
+![image](https://github.com/f-lab-edu/Meet-Up-Spot/assets/44284694/b55f274d-2db4-4087-824e-9950d70401bb)
 
 ## 인프라 구조
 ![image](https://github.com/f-lab-edu/Meet-Up-Spot/assets/44284694/d17b577a-8cd8-49fe-8bf7-e0809ffb57c9)
